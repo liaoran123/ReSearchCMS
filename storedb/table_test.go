@@ -570,6 +570,7 @@ func TestSearch(t *testing.T) {
 	table.SetPrimaryValue("id")
 	table.AddIndex([]string{"name"})
 	table.AddFullTextField("description")
+	table.InitAuto()
 
 	// 插入测试数据
 	data := []map[string]any{
@@ -578,6 +579,8 @@ func TestSearch(t *testing.T) {
 		{"id": 3, "name": "Charlie", "age": 35, "description": "Charlie is a designer"},
 		{"id": 4, "name": "David", "age": 40, "description": "David is a developer"},
 		{"id": 5, "name": "Eve", "age": 45, "description": "Eve is a manager"},
+		{"id": nil, "name": "Eve nil", "age": 45, "description": "Eve is a manager nil"},
+		{"id": nil, "name": "Eve nil1", "age": 45, "description": "Eve is a manager nil1"},
 	}
 
 	for _, item := range data {

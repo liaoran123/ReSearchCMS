@@ -110,6 +110,11 @@ func (t *Table) SetField(field string, value any) error {
 	if _, exists := t.fields[field]; !exists {
 		t.fields[field] = value
 	} else {
+		//主键值赋予nil值，是为了后续自动增值。故此为例外的不需要判断类型相同。
+		if field == t.primary && value == nil {
+			t.fields[field] = nil
+			return nil
+		}
 		// 已存在，判断类型是否相同
 		if fmt.Sprintf("%T", t.fields[field]) == fmt.Sprintf("%T", value) {
 			t.fields[field] = value
