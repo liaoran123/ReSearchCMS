@@ -562,3 +562,104 @@ func compareStringSlices(a, b []string) bool {
 	}
 	return true
 }
+
+// TestSearch 测试Search方法的功能
+func TestSearch(t *testing.T) {
+	// 创建测试表
+	table := TableNew("test_search")
+	table.SetPrimaryValue("id")
+	table.AddIndex([]string{"name"})
+	table.AddFullTextField("description")
+
+	// 插入测试数据
+	data := []map[string]any{
+		{"id": 1, "name": "Alice", "age": 25, "description": "Alice is a software engineer"},
+		{"id": 2, "name": "Bob", "age": 30, "description": "Bob is a product manager"},
+		{"id": 3, "name": "Charlie", "age": 35, "description": "Charlie is a designer"},
+		{"id": 4, "name": "David", "age": 40, "description": "David is a developer"},
+		{"id": 5, "name": "Eve", "age": 45, "description": "Eve is a manager"},
+	}
+
+	for _, item := range data {
+		table.SetField("id", item["id"])
+		table.SetField("name", item["name"])
+		table.SetField("age", item["age"])
+		table.SetField("description", item["description"])
+		if err := table.Insert(); err != nil {
+			t.Fatalf("插入测试数据失败: %v", err)
+		}
+	}
+	//测试遍历表所有kv
+	t.Run("For", func(t *testing.T) {
+		dataIter := table.For()
+		for dataIter.Next() {
+			fmt.Printf("key: %s, value: %s\n", dataIter.Key(), dataIter.Value())
+		}
+	})
+	// 测试遍历表所有数据
+	t.Run("ForData", func(t *testing.T) {
+		// 使用ForData方法遍历所有数据
+		dataIter := table.ForData()
+		results := dataIter.For(true)
+		if len(results) != 5 {
+			t.Errorf("遍历所有数据预期返回5条记录，实际返回%d条", len(results))
+			return
+		}
+		fmt.Printf("results: %v\n", results)
+	})
+	// 测试1: 主键搜索
+	t.Run("PrimaryKeySearch", func(t *testing.T) {
+		// 使用SearchData方法搜索主键为3的记录
+		dataIter := table.SearchData("id", 3)
+		results := dataIter.For(true)
+		if len(results) != 1 {
+			t.Errorf("主键搜索预期返回1条记录，实际返回%d条", len(results))
+			return
+		}
+
+		// 验证返回的数据是否正确
+		result := results[0].(map[string]any)
+		if result["id"] != 3.0 || result["name"] != "Charlie" {
+			t.Errorf("主键搜索返回的数据不正确，预期: {id: 3, name: 'Charlie'}, 实际: %v", result)
+		}
+	})
+
+	// 测试2: 索引字段搜索
+	t.Run("IndexSearch", func(t *testing.T) {
+		// 使用SearchData方法搜索name为"Charlie"的记录
+		dataIter := table.SearchData("name", "Charlie")
+		results := dataIter.For(true)
+		if len(results) != 1 {
+			t.Errorf("索引搜索预期返回1条记录，实际返回%d条", len(results))
+			return
+		}
+
+		// 验证返回的数据是否正确
+		result := results[0]
+		if result != 3.0 {
+			t.Errorf("索引搜索返回的数据不正确，预期: {id: 3}, 实际: %v", result)
+		}
+	})
+
+	// 测试3: 全文索引搜索
+	t.Run("FullTextSearch", func(t *testing.T) {
+		// 使用SearchData方法搜索description包含"developer"的记录
+		dataIter := table.SearchData("description", "Bob")
+		results := dataIter.For(true)
+		if len(results) == 0 {
+			t.Error("全文索引搜索预期返回至少1条记录，实际返回0条")
+			return
+		}
+
+	})
+
+	// 测试4: 搜索不存在的数据
+	t.Run("SearchNonExistent", func(t *testing.T) {
+		// 使用SearchData方法搜索不存在的id
+		dataIter := table.SearchData("id", 100)
+		results := dataIter.For(true)
+		if len(results) != 0 {
+			t.Errorf("搜索不存在的数据预期返回0条记录，实际返回%d条", len(results))
+		}
+	})
+}

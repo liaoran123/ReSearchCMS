@@ -28,6 +28,7 @@ type rsdb struct {
 	Db   *leveldb.DB
 }
 
+// 保证所有连接都是使用RsDB
 func OpenDb(dbpath string) *rsdb {
 	RsDB = &rsdb{
 		Opts: &opt.Options{
@@ -35,7 +36,7 @@ func OpenDb(dbpath string) *rsdb {
 		},
 	}
 	RsDB.InitDB(dbpath)
-	return RsDB
+	return RsDB //公共db，即保证所有连接都是使用该唯一db
 }
 
 // InitDB 初始化数据库连接
@@ -69,6 +70,7 @@ func (s *rsdb) InitDB(dbpath string) error {
 }
 
 // 获取迭代器
+// 由于golang不支持变参，故para只能传递两个参数
 func (s *rsdb) GetIterator(para ...[]byte) iterator.Iterator {
 	var slice *util.Range
 	plen := len(para)
@@ -83,7 +85,7 @@ func (s *rsdb) GetIterator(para ...[]byte) iterator.Iterator {
 	return s.Db.NewIterator(slice, nil)
 }
 
-// 获取迭代器
+// 获取数据迭代器
 func (s *rsdb) GetIteratorData(para ...[]byte) *TableData {
 	return TableDataNew(s.GetIterator(para...))
 }

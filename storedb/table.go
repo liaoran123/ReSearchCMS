@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"encoding/json/v2" //设置一个系统变量 GOEXPERIMENT=jsonv2 开启v2
 	"fmt"
+	"slices"
 	"strings"
 	"sync/atomic"
 
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/iterator"
 )
 
 const SPLIT = "-" //分隔符
@@ -22,10 +24,11 @@ type Table struct {
 		半结构，可以随意增加字段
 		泛型化，字段可以存储任意类型，不限制某种类型。至于有什么作用，看自己发挥。
 		底层支持泛型，业务上则由自己定义规则。
+		默认固定一个id字段为自动增值，当值为nil时，使用counter自动增值。
 	*/
 	fields map[string]any //string为字段名，any为字段值。
 	//下面的数组元素，对应于上面的fields的key字段名称
-	primary  string       //primary为空时，则默认创建一个字段为名称为"id"的主键。当primary字段值为空时，则表示为自动增值。只支持单个主键。
+	primary  string       //只支持单个主键。
 	counter  atomic.Int64 //自动增值计数器
 	index    [][]string
 	fullText []string
@@ -35,6 +38,7 @@ type Table struct {
 
 // 新建一个表
 // 表名不能包含分隔符SPLIT("-")，否则返回nil
+// 每次项目启动都会重新创建，或通过json转换为Table结构体
 func TableNew(name string) *Table {
 	// 检查表名是否包含分隔符
 	if strings.Contains(name, SPLIT) {
@@ -44,12 +48,15 @@ func TableNew(name string) *Table {
 	if RsDB == nil {
 		OpenDb("db")
 	}
-	return &Table{
-		name:   name,
-		fields: make(map[string]any),
-		ftlen:  5,
-		rsdb:   RsDB,
+	t := &Table{
+		name:    name,
+		fields:  make(map[string]any),
+		primary: "id",
+		ftlen:   5,
+		rsdb:    RsDB,
 	}
+	t.InitAuto()
+	return t
 }
 
 // 初始化自动增值的值
@@ -96,6 +103,10 @@ func (t *Table) MaxAutoValue() any {
 
 // 设置字段值,以第一次设置的数据类型为准
 func (t *Table) SetField(field string, value any) error {
+	// 字段名不能包含分隔符和标点符号
+	if strings.ContainsAny(field, SPLIT+"!\"#$%&'()*+,./:;<=>?@[\\]^`{|}~") {
+		return fmt.Errorf("字段名 '%s' 不能包含分隔符或标点符号", field)
+	}
 	if _, exists := t.fields[field]; !exists {
 		t.fields[field] = value
 	} else {
@@ -117,14 +128,14 @@ func (t *Table) SetFields(fields map[string]any) error {
 	return nil
 }
 
-// nil即表示使用自动增值
+// nil即表示使用自动增值，使用自动增值每次都需要将主键值设置为nil
 func (t *Table) InitPrimary() {
 	if t.fields[t.primary] == nil {
 		t.fields[t.primary] = t.counter.Add(1)
 	}
 }
 
-// 获取表字段的JSON字节数组
+// 将表所有字段转换为JSON字节数组
 func (t *Table) GetFields() []byte {
 	b, err := json.Marshal(t.fields)
 	if err != nil {
@@ -237,8 +248,10 @@ func (t *Table) GetFullTextValue() [][]byte {
 			idx.Write(val)
 
 			fullTextValues = append(fullTextValues, idx.Bytes())
+			//fmt.Printf("fullTextValues: %s\n", idx.String())
 		}
 	}
+
 	return fullTextValues
 }
 
@@ -448,4 +461,62 @@ func (t *Table) Read(primary any) map[string]any {
 	}
 
 	return fields
+}
+
+// 根据字段名获取对应的主键，索引，全文索引前缀
+func (t *Table) GetPrefix(field string) string {
+	if field == t.primary {
+		return t.GetPrimaryPrefix()
+	}
+	for _, idx := range t.index {
+		if idx[0] == field { //必须是第一个索引字段
+			return t.GetIndexPrefix()
+		}
+	}
+	if slices.Contains(t.fullText, field) {
+		return t.GetFullTextPrefix()
+	}
+	return ""
+}
+
+// 遍历表所有kv，复制表用
+func (t *Table) For() iterator.Iterator {
+	pfx := t.name + SPLIT
+	return t.rsdb.GetIterator([]byte(pfx))
+}
+
+// 遍历表所有数据
+func (t *Table) ForData() *TableData {
+	pfx := t.GetPrimaryPrefix()
+	return t.rsdb.GetIteratorData([]byte(pfx))
+}
+
+// 根据字段名和值搜索返回迭代器
+func (t *Table) Search(field string, value ...any) iterator.Iterator {
+	pfx := t.GetPrefix(field)
+	keys := [][]byte{}
+	if len(value) == 0 {
+		return nil
+	}
+	// 使用第一个值进行搜索
+	for _, v := range value {
+		jsonData, err := json.Marshal(v)
+		if err != nil {
+			fmt.Printf("值序列化失败: %v\n", err)
+			return nil
+		}
+		//示例值["Bob"]=>"Bob
+		jsonData = jsonData[1 : len(jsonData)-1] // 去掉首尾的双中括号[]="Bob"
+		if jsonData[len(jsonData)-1] == '"' {    //如果是字符串，去掉结尾的双引号
+			jsonData = jsonData[:len(jsonData)-1] // 去掉结尾的双引号="Bob
+		}
+		key := bytes.Join([][]byte{[]byte(pfx), []byte(jsonData)}, []byte(SPLIT))
+		keys = append(keys, key)
+	}
+	return t.rsdb.GetIterator(keys...)
+}
+
+// 根据字段名和值搜索返回数据迭代器
+func (t *Table) SearchData(field string, value ...any) *TableData {
+	return TableDataNew(t.Search(field, value))
 }
