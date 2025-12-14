@@ -1,0 +1,13 @@
+package storedb
+
+import "time"
+
+// TimeToUnix 将 time.Time 转为 Unix 时间戳（秒）
+func TimeToUnix(t time.Time) int64 {
+	return t.Unix()
+}
+
+// TimeToUnixMilli 将 time.Time 转为 Unix 时间戳（毫秒）
+func TimeToUnixMilli(t time.Time) int64 {
+	return t.UnixMilli()
+}

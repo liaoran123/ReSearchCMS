@@ -31,9 +31,9 @@ type Table struct {
 	//下面的数组元素，对应于上面的fields的key字段名称
 	primary  string       //只支持单个主键。
 	counter  atomic.Int64 //自动增值计数器
-	index    [][]string   //单索引，组合索引，全文索引等的各种组合索引
-	fullText []string     //全文索引字段名
-	ftlen    uint8        //全文索引分词长度，默认是5.限制是3--11.
+	index    [][]string
+	fullText []string
+	ftlen    uint8 //全文索引分词长度，默认是5.限制是3--11.
 	rsdb     *rsdb
 }
 
@@ -84,22 +84,26 @@ func (t *Table) InitAuto() {
 // 获取最大自动增值记录的主键值
 func (t *Table) MaxAutoValue() any {
 	key := []byte(t.GetPrimaryPrefix() + SPLIT)
-	iter := t.rsdb.GetIterator(key)
-	defer iter.Release()
-	var rkey []byte
-	if iter.Last() {
-		rkey = iter.Key()
+	/*
+		k1, _ := json.Marshal(1)
+		k2, _ := json.Marshal(9223372036854775807)
+		key1 := append(key, k1...)
+		key2 := append(key, k2...)
+	*/
+	td := t.rsdb.GetIteratorData(key)
+	defer td.Release()
+	_, value := td.Last()
+	if value != nil {
+		var v map[string]any
+		if err := json.Unmarshal(value, &v); err == nil {
+			return v[t.primary]
+		} else {
+			fmt.Printf("初始化自动增值失败: %v\n", err)
+			return 1
+		}
 	} else {
 		return 1
 	}
-	rkey = rkey[len(key):]
-	var target any
-	if t.fields[t.primary] == nil {
-		target = int(1)
-	} else {
-		target = t.fields[t.primary]
-	}
-	return Bytes(rkey).ToAny(target)
 }
 
 // 设置字段值,以第一次设置的数据类型为准
@@ -144,18 +148,21 @@ func (t *Table) InitPrimary() {
 	}
 }
 
-// 将表所有字段转换为字节数组
-// 格式为: field1:value1-field2:value2,...
+// 将表所有字段转换为JSON字节数组
 func (t *Table) GetFields() []byte {
 	sr := ""
 	for field, value := range t.fields {
 		if value == nil {
 			continue
 		}
-		sr += field + ":" + AnyToStr(value) + SPLIT
+		sr += fmt.Sprintf("\"%s\":%v"+SPLIT, field, value)
 	}
-	sr = sr[:len(sr)-len(SPLIT)]
-	return []byte(sr)
+	b, err := json.Marshal(t.fields)
+	if err != nil {
+		fmt.Printf("字段序列化失败: %v\n", err)
+		return nil
+	}
+	return b
 }
 
 // 主键前缀
@@ -176,7 +183,12 @@ func (t *Table) GetFullTextPrefix() string {
 // 获取主键值
 func (t *Table) GetPrimaryValue() []byte {
 	t.InitPrimary()
-	return AnyToBytes(t.fields[t.primary])
+	val, err := json.Marshal(t.fields[t.primary])
+	if err != nil {
+		fmt.Printf("主键序列化失败: %v\n", err)
+		return nil
+	}
+	return val
 }
 
 // 获取主键前缀
@@ -190,30 +202,28 @@ func (t *Table) GetPrimaryPrefixValue() []byte {
 func (t *Table) GetIndexValue() [][]byte {
 	indexValues := make([][]byte, 0, len(t.index))
 	indexPrefix := []byte(t.GetIndexPrefix())
-	var val []byte
-	var exists bool
-	var fieldValue any
 	for _, index := range t.index {
 		var idx bytes.Buffer
 		idx.Write(indexPrefix)
 		for _, field := range index {
 			// 获取字段值
-			fieldValue, exists = t.fields[field]
-			// 如果字段不存在或值为nil，跳过该索引
-			if !exists || fieldValue == nil {
+			fieldValue, exists := t.fields[field]
+			if !exists {
+				// 如果字段不存在，跳过该索引
 				break
 			}
-			val = AnyToBytes(fieldValue)
+			// 序列化字段值
+			val, err := json.Marshal(fieldValue)
+			if err != nil {
+				fmt.Printf("索引字段序列化失败: %v\n", err)
+				return nil
+			}
+
 			// 在每个索引字段前添加分隔符（包括第一个）
 			idx.Write([]byte(SPLIT))
 			idx.Write(val)
 		}
-		idxbyte := idx.Bytes()
-		// 索引值不能超过255字节
-		if len(idxbyte) >= 256 {
-			idxbyte = idxbyte[:255]
-		}
-		indexValues = append(indexValues, idxbyte)
+		indexValues = append(indexValues, idx.Bytes())
 	}
 	return indexValues
 }
@@ -234,19 +244,38 @@ func (t *Table) GetFullTextValue() [][]byte {
 		if !exists {
 			continue // 跳过不存在的字段
 		}
-		// 将字段值转换为字符串，全文索引只支持字符串
-		fieldStr := AnyToStr(fieldValue)
+		// 将字段值转换为字符串
+		var fieldStr string
+		switch v := fieldValue.(type) {
+		case string:
+			fieldStr = v
+		default:
+			// 将其他类型转换为字符串
+			val, err := json.Marshal(v)
+			if err != nil {
+				fmt.Printf("字段值转换为字符串失败: %v\n", err)
+				continue
+			}
+			fieldStr = string(val)
+		}
 		// 对字段值进行分词
 		tokens := t.GetFullTextToken(fieldStr, int(t.ftlen))
-
+		var val []byte
+		var err error
 		for _, token := range tokens {
 			var idx bytes.Buffer
 			idx.Write(fullTextPrefix)
 			idx.Write([]byte(SPLIT))
-			idx.Write([]byte(token))
+			val, err = json.Marshal(token)
+			if err != nil {
+				fmt.Printf("全文索引词序列化失败: %v\n", err)
+				return nil
+			}
+			idx.Write(val)
 			fullTextValues = append(fullTextValues, idx.Bytes())
 		}
 	}
+
 	return fullTextValues
 }
 
@@ -401,8 +430,7 @@ func (t *Table) Update(fields map[string]any) error {
 	}
 
 	// 读取旧记录
-	record := t.Read(primaryValue)
-	oldFields := t.RecordToMap(record)
+	oldFields := t.Read(primaryValue)
 	if oldFields == nil {
 		return fmt.Errorf("主键值 '%v' 的记录不存在", primaryValue)
 	}
@@ -428,8 +456,13 @@ func (t *Table) Update(fields map[string]any) error {
 }
 
 // 从按主键数据库读取记录
-func (t *Table) Read(primary any) []byte {
-	pb := AnyToBytes(primary)
+func (t *Table) Read(primary any) map[string]any {
+	pb, err := json.Marshal(primary)
+	if err != nil {
+		fmt.Printf("主键序列化失败: %v\n", err)
+		return nil
+	}
+
 	// 优化字符串拼接
 	var key bytes.Buffer
 	key.WriteString(t.GetPrimaryPrefix())
@@ -445,25 +478,12 @@ func (t *Table) Read(primary any) []byte {
 		return nil
 	}
 
-	return v
-}
-
-// 将记录转换为map
-func (t *Table) RecordToMap(record []byte) map[string]any {
-	if record == nil {
+	fields := make(map[string]any)
+	if err := json.Unmarshal(v, &fields); err != nil {
+		fmt.Printf("记录反序列化失败: %v\n", err)
 		return nil
 	}
-	bs := Bytes(record).Split()
-	fields := make(map[string]any, len(bs))
-	var kv [][]byte
-	file := ""
-	for _, b := range bs {
-		kv = Bytes(b).Split(':')
-		if len(kv) == 2 {
-			file = string(kv[0])
-			fields[file] = Bytes(kv[1]).ToAny(t.fields[file])
-		}
-	}
+
 	return fields
 }
 
@@ -495,7 +515,7 @@ func (t *Table) ForData() *TableData {
 	return t.rsdb.GetIteratorData([]byte(pfx))
 }
 
-// 根据索引进行搜索返回迭代器
+// 根据字段名和值搜索返回迭代器
 func (t *Table) Search(field string, value ...any) iterator.Iterator {
 	pfx := t.GetPrefix(field)
 	keys := [][]byte{}

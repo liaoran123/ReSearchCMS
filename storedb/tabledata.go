@@ -1,12 +1,18 @@
 package storedb
 
 import (
-	"encoding/json/v2"
-	"fmt"
-
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 )
 
+/*
+var (
+	record = sync.Pool{
+		New: func() any {
+			return new([]any)
+		},
+	}
+)
+*/
 // 返回表数据或索引数据
 type TableData struct {
 	iter iterator.Iterator
@@ -32,7 +38,7 @@ func TableDataNew(iter iterator.Iterator) *TableData {
 func (t *TableData) Setiter(iter iterator.Iterator) {
 	t.iter = iter
 }
-func (t *TableData) For(esc bool, limit ...int) (ret []any) {
+func (t *TableData) For(esc bool, limit ...int) (ret [][]byte) {
 	if !t.top[esc]() {
 		return nil
 	}
@@ -50,19 +56,12 @@ func (t *TableData) For(esc bool, limit ...int) (ret []any) {
 		count = limit[1]
 	}
 	loop := 0
-
 	// 处理当前位置的元素
 	for {
 		if loop < start {
 			loop++
 		} else {
-			var val any
-			err := json.Unmarshal(t.iter.Value(), &val)
-			if err != nil {
-				fmt.Printf("字段反序列化失败: %v\n", err)
-				continue
-			}
-			ret = append(ret, val)
+			ret = append(ret, t.iter.Value())
 			if count > 0 && len(ret) >= count {
 				break
 			}
@@ -72,7 +71,6 @@ func (t *TableData) For(esc bool, limit ...int) (ret []any) {
 			break
 		}
 	}
-
 	// 释放迭代器
 	t.iter.Release()
 	return ret
