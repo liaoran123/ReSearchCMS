@@ -2,7 +2,6 @@ package storedb
 
 import (
 	"bytes"
-	"encoding/json/v2"
 	"testing"
 )
 
@@ -171,9 +170,10 @@ func TestTableDataMethods(t *testing.T) {
 		t.Error("First()方法返回的键不包含预期的前缀")
 	}
 
-	var fields map[string]any
-	if err := json.Unmarshal(value, &fields); err != nil {
-		t.Errorf("反序列化数据失败: %v", err)
+	// 使用Table.ParseValue方法解析数据，而不是json.Unmarshal
+	fields := table.ParseValue(value)
+	if fields == nil {
+		t.Error("解析数据失败")
 	} else {
 		if fields["name"] != "John Doe" {
 			t.Errorf("数据内容错误，期望name为John Doe，实际为: %v", fields["name"])

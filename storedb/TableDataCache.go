@@ -35,6 +35,7 @@ type TableDataCache struct {
 }
 
 func TableDataCacheNew(max int, timeout time.Duration) *TableDataCache {
+	// 初始化全局数据迭代器缓存TDCache，保证在多线程环境下安全，只有唯一一个实例
 	TDCache = &TableDataCache{
 		td:      sync.Map{},
 		hit:     make(map[string]time.Time),

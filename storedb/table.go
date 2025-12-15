@@ -498,7 +498,7 @@ func (t *Table) ForData() *TableData {
 
 // 根据索引进行搜索返回迭代器
 // idxType 索引类型，0：主键索引，1：普通索引，2：全文索引
-func (t *Table) Search(idx []string, idxType int) iterator.Iterator {
+func (t *Table) SearchForIndex(idx []string, idxType int) iterator.Iterator {
 	if len(idx) == 0 {
 		return nil
 	}
@@ -575,7 +575,7 @@ func (t *Table) MatchIndex(field ...string) ([]string, int) {
 
 // 根据字段名和值搜索返回数据迭代器
 // 缓存迭代器，避免每次for都重新创建迭代器
-func (t *Table) SearchData(field ...string) *TableData {
+func (t *Table) Search(field ...string) *TableData {
 	idx, idxType := t.MatchIndex(field...)
 	if idx == nil {
 		return nil
@@ -586,10 +586,11 @@ func (t *Table) SearchData(field ...string) *TableData {
 	for _, v := range idx {
 		key += v + ":" + AnyToStr(t.fields[v]) + SPLIT
 	}
-	// 检查缓存
+	// 检查缓存是否存在迭代器
 	td, _ := TDCache.Load(key)
 	if td == nil {
-		iter := t.Search(idx, idxType)
+		// 缓存不存在迭代器，创建新的迭代器
+		iter := t.SearchForIndex(idx, idxType)
 		td = TableDataNew(iter, t)
 		if td != nil {
 			TDCache.Store(key, td)
