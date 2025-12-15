@@ -528,15 +528,14 @@ func (t *Table) Search(field ...string) iterator.Iterator {
 	return t.rsdb.GetIterator(keys)
 }
 
-// 匹配对应的索引字段
+// 匹配对应的索引字段和索引类型
 func (t *Table) MatchIndex(field ...string) ([]string, int) {
 	if len(field) == 1 {
 		if field[0] == t.primary {
-			return t.GetPrimaryPrefix(), 0
+			return []string{t.GetPrimaryPrefix()}, 0
 		}
-
 		if slices.Contains(t.fullText, field[0]) {
-			return t.GetFullTextPrefix(), 2
+			return []string{t.GetFullTextPrefix()}, 2
 		}
 	}
 
@@ -554,7 +553,7 @@ func (t *Table) MatchIndex(field ...string) ([]string, int) {
 			result = idx
 		}
 	}
-	return result
+	return result, 1
 }
 
 // 根据字段名和值搜索返回数据迭代器
