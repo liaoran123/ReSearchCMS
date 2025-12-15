@@ -48,6 +48,7 @@ func TableDataCacheNew(max int, timeout time.Duration) *TableDataCache {
 
 // 存储数据迭代器
 func (c *TableDataCache) Store(key string, td *TableData) {
+	// 当缓存中的数据迭代器数量超过最大容量的90%时，触发过期检查
 	if len(c.hit) > c.max/10*9 {
 		go c.CheckAllExpire()
 	}

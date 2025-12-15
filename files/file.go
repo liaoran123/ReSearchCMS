@@ -1,0 +1,159 @@
+package files
+
+import (
+	"bytes"
+	"fmt"
+	"os"
+	"path/filepath"
+	"regexp"
+
+	"github.com/unidoc/unioffice/document"
+	"github.com/unidoc/unioffice/presentation"
+	"github.com/unidoc/unioffice/spreadsheet"
+)
+
+// GetOfficeTextContent 从Office文件中提取文本内容
+// 支持.docx、.xlsx、.pptx文件
+func GetOfficeTextContent(filePath string) (string, error) {
+	// 获取文件扩展名
+	ext := filepath.Ext(filePath)
+
+	// 根据文件扩展名选择处理方式
+	switch ext {
+	case ".docx":
+		return getDOCXTextContent(filePath)
+	case ".xlsx":
+		return getXLSXTextContent(filePath)
+	case ".pptx":
+		return getPPTXTextContent(filePath)
+	default:
+		return "", fmt.Errorf("不支持的文件类型: %s", ext)
+	}
+}
+
+// getDOCXTextContent 从DOCX文件中提取文本内容
+func getDOCXTextContent(filePath string) (string, error) {
+	// 打开DOCX文件
+	doc, err := document.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer doc.Close()
+
+	var buf bytes.Buffer
+
+	// 遍历所有段落
+	for _, para := range doc.Paragraphs() {
+		// 遍历段落中的所有文本运行
+		for _, run := range para.Runs() {
+			buf.WriteString(run.Text())
+		}
+		buf.WriteString("\n")
+	}
+
+	return buf.String(), nil
+}
+
+// getXLSXTextContent 从XLSX文件中提取文本内容
+func getXLSXTextContent(filePath string) (string, error) {
+	// 打开XLSX文件
+	xlFile, err := spreadsheet.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer xlFile.Close()
+
+	var buf bytes.Buffer
+
+	// 遍历所有工作表
+	for _, sheet := range xlFile.Sheets() {
+		buf.WriteString(fmt.Sprintf("工作表: %s\n", sheet.Name()))
+
+		// 遍历所有行
+		for _, row := range sheet.Rows() {
+			// 遍历所有单元格
+			for _, cell := range row.Cells() {
+				// 获取单元格的文本内容
+				text := cell.GetFormattedValue()
+				fmt.Fprintf(&buf, "%s\t", text)
+			}
+			buf.WriteString("\n")
+		}
+		buf.WriteString("\n")
+	}
+
+	return buf.String(), nil
+}
+
+// getPPTXTextContent 从PPTX文件中提取文本内容
+func getPPTXTextContent(filePath string) (string, error) {
+	// 打开PPTX文件
+	prs, err := presentation.Open(filePath)
+	if err != nil {
+		return "", err
+	}
+	defer prs.Close()
+
+	var buf bytes.Buffer
+
+	// 遍历所有幻灯片
+	for i, slide := range prs.Slides() {
+		buf.WriteString(fmt.Sprintf("幻灯片 %d:\n", i+1))
+
+		// 使用ExtractText方法提取幻灯片中的所有文本
+		slideText := slide.ExtractText()
+		if slideText != nil {
+			buf.WriteString(slideText.Text())
+			buf.WriteString("\n")
+		}
+		buf.WriteString("\n")
+	}
+
+	return buf.String(), nil
+}
+
+// GetHTMLTextContent 从HTML文件中提取文本内容
+func GetHTMLTextContent(filePath string) (string, error) {
+	// 读取HTML文件
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	// 使用正则表达式移除HTML标签，提取纯文本内容
+	htmlContent := string(content)
+
+	// 移除HTML标签
+	tagRegex := regexp.MustCompile(`<[^>]+>`)
+	textContent := tagRegex.ReplaceAllString(htmlContent, "")
+
+	// 移除多余的空白字符
+	whitespaceRegex := regexp.MustCompile(`\s+`)
+	textContent = whitespaceRegex.ReplaceAllString(textContent, " ")
+
+	return textContent, nil
+}
+
+// ReadFileContent 读取文件内容，根据文件类型自动选择处理方式
+func ReadFileContent(filePath string) (string, error) {
+	// 获取文件扩展名
+	ext := filepath.Ext(filePath)
+
+	// 检查是否为Office文件
+	if ext == ".docx" || ext == ".xlsx" || ext == ".pptx" {
+		return GetOfficeTextContent(filePath)
+	}
+
+	// 检查是否为HTML文件
+	if ext == ".html" || ext == ".htm" {
+		return GetHTMLTextContent(filePath)
+	}
+
+	// 读取普通文本文件
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		return "", err
+	}
+
+	return string(content), nil
+}
