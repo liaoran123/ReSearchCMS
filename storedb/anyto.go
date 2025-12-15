@@ -6,6 +6,9 @@ import (
 )
 
 func AnyToStr(i any) string {
+	if i == nil {
+		return ""
+	}
 	switch v := i.(type) {
 	case int:
 		return strconv.Itoa(v)
@@ -106,6 +109,9 @@ func StrToAny(i string, t any) any {
 // 根任意数据类型转换[]byte函数
 // 只有字符串和整型可以进行排序，故除整型外，其他类型都返回v.(string)的[]byte
 func AnyToBytes(v any) []byte {
+	if v == nil {
+		return []byte("")
+	}
 	switch val := v.(type) {
 	case int:
 		return IntToBytes(val, EndianOrder)

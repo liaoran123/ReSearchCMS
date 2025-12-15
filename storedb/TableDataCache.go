@@ -10,10 +10,11 @@ import (
 var timeout time.Duration = time.Minute * 5
 
 // 全局数据迭代器缓存，默认超时时间为5分钟
-var TDCache = TableDataCacheNew(10000, timeout)
+var TDCache *TableDataCache
 
 // 启动定时器，每5分钟执行一次CheckAllExpire
 func init() {
+	TableDataCacheNew(10000, timeout)
 	go func() {
 		ticker := time.NewTicker(timeout)
 		defer ticker.Stop()
@@ -34,12 +35,13 @@ type TableDataCache struct {
 }
 
 func TableDataCacheNew(max int, timeout time.Duration) *TableDataCache {
-	return &TableDataCache{
+	TDCache = &TableDataCache{
 		td:      sync.Map{},
 		hit:     make(map[string]time.Time),
 		timeout: timeout,
 		max:     max,
 	}
+	return TDCache
 }
 
 // 存储数据迭代器
@@ -68,6 +70,11 @@ func (c *TableDataCache) Load(key string) (*TableData, bool) {
 func (c *TableDataCache) CheckExpire(key string) bool {
 	if hit, ok := c.hit[key]; ok {
 		if time.Since(hit) > c.timeout {
+			if val, ok := c.td.Load(key); ok {
+				if td, ok := val.(*TableData); ok {
+					td.Release() // 删除前先释放数据迭代器
+				}
+			}
 			c.td.Delete(key)
 			delete(c.hit, key)
 			return true

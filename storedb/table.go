@@ -410,7 +410,7 @@ func (t *Table) Update(fields map[string]any) error {
 	}
 
 	// 创建新记录
-	newTable := TableNew(t.name)
+	newTable, _ := TableNew(t.name)
 	newTable.primary = t.primary
 
 	// 合并字段值
@@ -469,21 +469,20 @@ func (t *Table) ParseValue(record []byte) map[string]any {
 	return fields
 }
 
-// 根据字段名获取对应的主键，索引，全文索引前缀
-func (t *Table) GetPrefix(field string) (string, int) {
-	if field == t.primary {
-		return t.GetPrimaryPrefix(), 0
+/*
+// 根据索引类型获取对应的主键，索引，全文索引前缀
+func (t *Table) GetPrefix(idxType int) string {
+	switch idxType {
+	case 0:
+		return t.GetPrimaryPrefix()
+	case 1:
+		return t.GetIndexPrefix()
+	case 2:
+		return t.GetFullTextPrefix()
+	default:
+		return ""
 	}
-	for _, idx := range t.index {
-		if idx[0] == field { //必须是第一个索引字段
-			return t.GetIndexPrefix(), 1
-		}
-	}
-	if slices.Contains(t.fullText, field) {
-		return t.GetFullTextPrefix(), 2
-	}
-	return "", 0
-}
+}*/
 
 // 遍历表所有kv，复制表用
 func (t *Table) For() iterator.Iterator {
@@ -498,27 +497,33 @@ func (t *Table) ForData() *TableData {
 }
 
 // 根据索引进行搜索返回迭代器
-func (t *Table) Search(field ...string) iterator.Iterator {
-	if len(field) == 0 {
+// idxType 索引类型，0：主键索引，1：普通索引，2：全文索引
+func (t *Table) Search(idx []string, idxType int) iterator.Iterator {
+	if len(idx) == 0 {
 		return nil
 	}
-	idx := t.MatchIndex(field...)
-	if idx == nil {
-		return nil
+	pfx := ""
+	switch idxType {
+	case 0:
+		pfx = t.GetPrimaryPrefix()
+	case 1:
+		pfx = t.GetIndexPrefix()
+	case 2:
+		pfx = t.GetFullTextPrefix()
 	}
-	pfx, idxType := t.GetPrefix(idx[0])
 	keys := []byte(pfx)
 	var val any
 	var bval []byte
 	var fval string
 	// 使用第一个值进行搜索
-	for _, v := range field {
+	for _, v := range idx {
 		val = t.fields[v]
 		if idxType != 2 {
 			bval = AnyToBytes(val)
 			keys = append(keys, bval...)
 		} else { //全文索引
 			fval = AnyToStr(val)
+			// 全文索引只取前ftlen个字符
 			if len([]rune(fval)) > int(t.ftlen) {
 				fval = string([]rune(fval)[:t.ftlen])
 			}
@@ -529,16 +534,21 @@ func (t *Table) Search(field ...string) iterator.Iterator {
 }
 
 // 匹配对应的索引字段和索引类型
+// 需要完全匹配，不能部分匹配
 func (t *Table) MatchIndex(field ...string) ([]string, int) {
-	if len(field) == 1 {
+	flen := len(field)
+	//主键和全文索引都是单字段索引
+	if flen == 1 {
+		//匹配主键索引
 		if field[0] == t.primary {
-			return []string{t.GetPrimaryPrefix()}, 0
+			return []string{t.primary}, 0
 		}
+		//匹配全文索引
 		if slices.Contains(t.fullText, field[0]) {
-			return []string{t.GetFullTextPrefix()}, 2
+			return []string{field[0]}, 2
 		}
 	}
-
+	//检测匹配的索引或组合索引
 	maxCnt := 0
 	var result []string
 	for _, idx := range t.index {
@@ -551,21 +561,39 @@ func (t *Table) MatchIndex(field ...string) ([]string, int) {
 		if cnt > maxCnt {
 			maxCnt = cnt
 			result = idx
+			if cnt == flen {
+				break
+			}
 		}
 	}
-	return result, 1
+	//只支持完全匹配
+	if maxCnt >= flen {
+		return result, 1
+	}
+	return nil, -1
 }
 
 // 根据字段名和值搜索返回数据迭代器
 // 缓存迭代器，避免每次for都重新创建迭代器
 func (t *Table) SearchData(field ...string) *TableData {
-	str := strings.Join(field, ":")
-	str = t.name + "." + str
-	td := TDCache.Load(str)
+	idx, idxType := t.MatchIndex(field...)
+	if idx == nil {
+		return nil
+	}
+	// 构建缓存键
+	key := t.name + SPLIT
+	// 拼接索引字段和值
+	for _, v := range idx {
+		key += v + ":" + AnyToStr(t.fields[v]) + SPLIT
+	}
+	// 检查缓存
+	td, _ := TDCache.Load(key)
 	if td == nil {
-		iter := t.Search(field...)
+		iter := t.Search(idx, idxType)
 		td = TableDataNew(iter, t)
-		TDCache.Store(str, td)
+		if td != nil {
+			TDCache.Store(key, td)
+		}
 	}
 	return td
 }
