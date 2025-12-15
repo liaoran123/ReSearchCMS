@@ -1,7 +1,6 @@
 package storedb
 
 import (
-	"log"
 	"sync"
 	"time"
 )
@@ -15,6 +14,7 @@ var TDCache *TableDataCache
 // 启动定时器，每5分钟执行一次CheckAllExpire
 func init() {
 	TableDataCacheNew(10000, timeout)
+	/*定时器太耗资源
 	go func() {
 		ticker := time.NewTicker(timeout)
 		defer ticker.Stop()
@@ -22,6 +22,7 @@ func init() {
 			TDCache.CheckAllExpire()
 		}
 	}()
+	*/
 }
 
 // 数据迭代器缓存
@@ -47,9 +48,8 @@ func TableDataCacheNew(max int, timeout time.Duration) *TableDataCache {
 
 // 存储数据迭代器
 func (c *TableDataCache) Store(key string, td *TableData) {
-	if len(c.hit) >= c.max {
-		log.Printf("TableDataCache Store max %d", c.max)
-		return
+	if len(c.hit) > c.max/10*9 {
+		go c.CheckAllExpire()
 	}
 	c.td.Store(key, td)
 	if _, ok := c.hit[key]; ok {
