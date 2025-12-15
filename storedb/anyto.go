@@ -63,7 +63,7 @@ func StrToAny(i string, t any) any {
 		v, _ := strconv.ParseInt(i, 10, 8)
 		return int8(v)
 	case uint:
-		v, _ := strconv.ParseUint(i, 10, strconv.IntSize)
+		v, _ := strconv.ParseUint(i, 10, intSize)
 		return uint(v)
 	case uint64:
 		v, _ := strconv.ParseUint(i, 10, 64)

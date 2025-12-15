@@ -9,7 +9,10 @@ import (
 // TestGetIterator 测试GetIterator方法的功能
 func TestGetIterator(t *testing.T) {
 	// 初始化测试数据
-	table := TableNew("test_iterator")
+	table, err := TableNew("test_iterator")
+	if err != nil {
+		t.Fatalf("创建测试表失败: %v", err)
+	}
 	table.SetField("id", 1)
 	table.SetField("name", "John Doe")
 	table.SetField("age", 30)
@@ -43,7 +46,8 @@ func TestGetIterator(t *testing.T) {
 
 	// 测试1: 全库扫描
 	t.Run("FullScan", func(t *testing.T) {
-		data := RsDB.GetIteratorData()
+		iter := RsDB.GetIterator()
+		data := TableDataNew(iter, table)
 		result := data.For(true)
 		if len(result) == 0 {
 			t.Error("全库扫描返回空结果")
@@ -58,7 +62,8 @@ func TestGetIterator(t *testing.T) {
 	// 测试2: 前缀扫描 - 扫描特定表的主键
 	t.Run("PrefixScan", func(t *testing.T) {
 		prefix := []byte("test_iterator-pk-")
-		data := RsDB.GetIteratorData(prefix)
+		iter := RsDB.GetIterator(prefix)
+		data := TableDataNew(iter, table)
 		result := data.For(true)
 		// 打印result的原始内容
 		t.Logf("result的原始内容: %+v", result)
@@ -83,7 +88,8 @@ func TestGetIterator(t *testing.T) {
 		// 扫描id在1到2之间的数据（包括1和2）
 		start := []byte("test_iterator-pk-1")
 		limit := []byte("test_iterator-pk-3") // 注意：leveldb的范围扫描是左闭右开的
-		data := RsDB.GetIteratorData(start, limit)
+		iter := RsDB.GetIterator(start, limit)
+		data := TableDataNew(iter, table)
 		result := data.For(true)
 		if len(result) != 2 {
 			t.Errorf("范围扫描返回的数据数量错误，期望2条，实际: %d", len(result))
@@ -93,7 +99,8 @@ func TestGetIterator(t *testing.T) {
 	// 测试4: 反向遍历
 	t.Run("ReverseIteration", func(t *testing.T) {
 		prefix := []byte("test_iterator-pk-")
-		data := RsDB.GetIteratorData(prefix)
+		iter := RsDB.GetIterator(prefix)
+		data := TableDataNew(iter, table)
 		result := data.For(false)
 		if len(result) != 3 {
 			t.Errorf("反向遍历返回的数据数量错误，期望3条，实际: %d", len(result))
@@ -113,7 +120,8 @@ func TestGetIterator(t *testing.T) {
 	// 测试5: 使用Limit参数
 	t.Run("LimitParameter", func(t *testing.T) {
 		prefix := []byte("test_iterator-pk-")
-		data := RsDB.GetIteratorData(prefix)
+		iter := RsDB.GetIterator(prefix)
+		data := TableDataNew(iter, table)
 		result := data.For(true, 2) // 只返回前2条数据
 		if len(result) != 2 {
 			t.Errorf("使用Limit参数返回的数据数量错误，期望2条，实际: %d", len(result))
@@ -133,7 +141,10 @@ func TestGetIterator(t *testing.T) {
 // TestTableDataMethods 测试TableData结构体的其他方法
 func TestTableDataMethods(t *testing.T) {
 	// 初始化测试数据
-	table := TableNew("test_tabledata_methods")
+	table, err := TableNew("test_tabledata_methods")
+	if err != nil {
+		t.Fatalf("创建测试表失败: %v", err)
+	}
 	table.SetField("id", 1)
 	table.SetField("name", "John Doe")
 	table.SetField("age", 30)
@@ -148,7 +159,8 @@ func TestTableDataMethods(t *testing.T) {
 
 	// 测试First()方法
 	prefix := []byte("test_tabledata_methods-pk-")
-	data := RsDB.GetIteratorData(prefix)
+	iter := RsDB.GetIterator(prefix)
+	data := TableDataNew(iter, table)
 	key, value := data.First()
 	if key == nil || value == nil {
 		t.Error("First()方法返回空值")

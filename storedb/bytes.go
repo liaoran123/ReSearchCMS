@@ -30,8 +30,6 @@ func (b Bytes) Bool() bool {
 
 func (b Bytes) Int() int {
 	// 根据当前平台 int 的位数决定读取长度
-	const intSize = strconv.IntSize
-	//const intSize = 32 << (^uint(0) >> 63) // 32 或 64
 	if intSize == 64 {
 		if len(b) < 8 {
 			return 0

@@ -1,0 +1,38 @@
+package storedb
+
+/*
+// KV 键值对接口
+type KV interface {
+	Get(k, v []byte)
+}*/
+// KV 键值 Fn 函数类型
+type Fn func(k, v []byte)
+
+// Record 记录结构体
+type Record struct {
+	fields map[string]any
+	Data   []map[string]any // 记录数据
+}
+
+func RecordNew(fields map[string]any) *Record {
+	return &Record{fields: fields, Data: []map[string]any{}}
+}
+func (r *Record) Get(k, v []byte) {
+	bs := Bytes(v).Split()
+	fields := make(map[string]any, len(bs))
+	var kv [][]byte
+	file := ""
+	for _, b := range bs {
+		kv = Bytes(b).Split(':')
+		if len(kv) == 2 {
+			file = string(kv[0])
+			fields[file] = Bytes(kv[1]).ToAny(r.fields[file])
+		}
+	}
+	r.Data = append(r.Data, fields)
+}
+
+type Indexs struct {
+	primary any
+	Data    map[any]bool // 索引map数据
+}

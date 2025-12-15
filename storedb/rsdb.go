@@ -85,11 +85,6 @@ func (s *rsdb) GetIterator(para ...[]byte) iterator.Iterator {
 	return s.Db.NewIterator(slice, nil)
 }
 
-// 获取数据迭代器
-func (s *rsdb) GetIteratorData(para ...[]byte) *TableData {
-	return TableDataNew(s.GetIterator(para...))
-}
-
 // Close 关闭数据库连接
 func (s *rsdb) Close() error {
 	if s.Db != nil {

@@ -2,7 +2,6 @@ package storedb
 
 import (
 	"encoding/binary"
-	"strconv"
 )
 
 // binary.BigEndian.PutUint32 大端
@@ -28,7 +27,7 @@ func Int64ToBytes(v int64, order binary.ByteOrder) []byte {
 	return b
 }
 func IntToBytes(v int, order binary.ByteOrder) []byte {
-	if strconv.IntSize == 32 {
+	if intSize == 32 {
 		return Int32ToBytes(int32(v), order)
 	}
 	return Int64ToBytes(int64(v), order)

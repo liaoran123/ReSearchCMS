@@ -529,17 +529,7 @@ func (t *Table) Search(field ...string) iterator.Iterator {
 }
 
 // 匹配对应的索引字段
-func (t *Table) MatchIndex(field ...string) ([]string, int) {
-	if len(field) == 1 {
-		if field[0] == t.primary {
-			return t.GetPrimaryPrefix(), 0
-		}
-
-		if slices.Contains(t.fullText, field[0]) {
-			return t.GetFullTextPrefix(), 2
-		}
-	}
-
+func (t *Table) MatchIndex(field ...string) []string {
 	maxCnt := 0
 	var result []string
 	for _, idx := range t.index {

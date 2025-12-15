@@ -2,10 +2,14 @@ package storedb
 
 import (
 	"encoding/binary"
+	"strconv"
 	"unsafe"
 )
 
 var EndianOrder = Endian()
+
+// intSize 表示 int 类型的位数，32 或 64
+const intSize = strconv.IntSize
 
 // 判断大小端
 func Endian() binary.ByteOrder {

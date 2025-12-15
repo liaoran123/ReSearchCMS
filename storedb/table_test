@@ -11,7 +11,10 @@ import (
 // TestTableNew 测试表的创建
 func TestTableNew(t *testing.T) {
 	// 测试创建正常表名
-	table := TableNew("test_table")
+	table, err := TableNew("test_table")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败，返回 nil")
 	}
@@ -26,7 +29,10 @@ func TestTableNew(t *testing.T) {
 	}
 
 	// 测试包含分隔符的表名
-	invalidTable := TableNew("test-table")
+	invalidTable, err := TableNew("test-table")
+	if err == nil {
+		t.Error("TableNew 应该拒绝包含分隔符的表名")
+	}
 	if invalidTable != nil {
 		t.Error("TableNew 应该拒绝包含分隔符的表名")
 	}
@@ -34,7 +40,10 @@ func TestTableNew(t *testing.T) {
 
 // TestPrimaryFunctions 测试主键相关功能
 func TestPrimaryFunctions(t *testing.T) {
-	table := TableNew("test_primary")
+	table, err := TableNew("test_primary")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
@@ -67,7 +76,10 @@ func TestPrimaryFunctions(t *testing.T) {
 
 // TestIndexFunctions 测试索引相关功能
 func TestIndexFunctions(t *testing.T) {
-	table := TableNew("test_index")
+	table, err := TableNew("test_index")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
@@ -95,7 +107,10 @@ func TestIndexFunctions(t *testing.T) {
 
 // TestFullTextFunctions 测试全文索引相关功能
 func TestFullTextFunctions(t *testing.T) {
-	table := TableNew("test_fulltext")
+	table, err := TableNew("test_fulltext")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
@@ -140,7 +155,10 @@ func TestFullTextFunctions(t *testing.T) {
 
 // TestFullTextToken 测试全文索引分词功能
 func TestFullTextToken(t *testing.T) {
-	table := TableNew("test_token")
+	table, err := TableNew("test_token")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
@@ -176,7 +194,10 @@ func TestFullTextToken(t *testing.T) {
 
 // TestGetFields 测试获取字段功能
 func TestGetFields(t *testing.T) {
-	table := TableNew("test_fields")
+	table, err := TableNew("test_fields")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
@@ -188,7 +209,7 @@ func TestGetFields(t *testing.T) {
 	table.SetField("active", true)
 
 	// 获取字段的字节表示
-	fieldsBytes := table.GetFields()
+	fieldsBytes := table.GetFieldsValue()
 	if fieldsBytes == nil {
 		t.Error("GetFields 返回 nil")
 		return
@@ -220,7 +241,10 @@ func TestGetFields(t *testing.T) {
 
 // TestAutoIncrement 测试自动增值功能
 func TestAutoIncrement(t *testing.T) {
-	table := TableNew("test_autoinc")
+	table, err := TableNew("test_autoinc")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
@@ -247,7 +271,13 @@ func TestAutoIncrement(t *testing.T) {
 	}
 
 	// 再次调用应该生成下一个值
-	table2 := TableNew("test_autoinc")
+	table2, err := TableNew("test_autoinc")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
+	if table2 == nil {
+		t.Fatal("TableNew 失败")
+	}
 	table2.SetPrimaryValue("id")
 	table2.SetField("id", nil)
 	table2.InitAuto()
@@ -271,7 +301,10 @@ func TestAutoIncrement(t *testing.T) {
 
 // TestGetFullTextValue 测试全文索引值生成功能
 func TestGetFullTextValue(t *testing.T) {
-	table := TableNew("test_fulltext_value")
+	table, err := TableNew("test_fulltext_value")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
@@ -316,7 +349,10 @@ func TestGetFullTextValue(t *testing.T) {
 
 // compareStringSlices 比较两个字符串切片是否相等
 func TestGetIndexValue(t *testing.T) {
-	table := TableNew("test_get_index_value")
+	table, err := TableNew("test_get_index_value")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
@@ -360,7 +396,13 @@ func TestGetIndexValue(t *testing.T) {
 // TestTableInitAuto 测试InitAuto方法的功能
 func TestTableInitAuto(t *testing.T) {
 	// 测试场景1: 空表初始化
-	table1 := TableNew("test_initauto_empty")
+	table1, err := TableNew("test_initauto_empty")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
+	if table1 == nil {
+		t.Fatal("TableNew 失败")
+	}
 	table1.SetPrimaryValue("id")
 
 	// 验证空表情况下InitAuto的行为
@@ -371,7 +413,13 @@ func TestTableInitAuto(t *testing.T) {
 	}
 
 	// 测试场景2: 已有数据的表初始化
-	table2 := TableNew("test_inauto_with_data")
+	table2, err := TableNew("test_inauto_with_data")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
+	if table2 == nil {
+		t.Fatal("TableNew 失败")
+	}
 	table2.SetPrimaryValue("id")
 
 	// 插入一些测试数据
@@ -384,7 +432,13 @@ func TestTableInitAuto(t *testing.T) {
 	}
 
 	// 创建一个新的表实例，用于测试InitAuto方法
-	table2New := TableNew("test_inauto_with_data")
+	table2New, err := TableNew("test_inauto_with_data")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
+	if table2New == nil {
+		t.Fatal("TableNew 失败")
+	}
 	table2New.SetPrimaryValue("id")
 
 	// 调用InitAuto方法
@@ -396,7 +450,13 @@ func TestTableInitAuto(t *testing.T) {
 	}
 
 	// 测试场景3: 已有数据且设置了主键的情况
-	table3 := TableNew("test_inauto_with_primary_set")
+	table3, err := TableNew("test_inauto_with_primary_set")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
+	if table3 == nil {
+		t.Fatal("TableNew 失败")
+	}
 	table3.SetPrimaryValue("id")
 	table3.SetField("id", 10)
 	table3.SetField("name", "User with set id")
@@ -413,7 +473,13 @@ func TestTableInitAuto(t *testing.T) {
 // TestTableRead 测试Read方法的功能
 func TestTableRead(t *testing.T) {
 	// 创建测试表
-	table := TableNew("test_read")
+	table, err := TableNew("test_read")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
+	if table == nil {
+		t.Fatal("TableNew 失败")
+	}
 	table.SetField("id", 1)
 	table.SetField("name", "John Doe")
 	table.SetField("age", 30)
@@ -423,14 +489,14 @@ func TestTableRead(t *testing.T) {
 	table.SetPrimaryValue("id")
 
 	// 插入测试数据
-	err := table.Insert()
+	err = table.Insert()
 	if err != nil {
 		t.Fatalf("插入测试数据失败: %v", err)
 	}
 
 	// 测试1: 正常读取已存在的记录
 	record := table.Read(1)
-	insertedFields := table.RecordToMap(record)
+	insertedFields := table.ParseValue(record)
 	if insertedFields == nil {
 		t.Fatal("读取失败，无法读取已存在的记录")
 	}
@@ -450,7 +516,13 @@ func TestTableRead(t *testing.T) {
 	}
 
 	// 测试3: 使用字符串主键
-	table2 := TableNew("test_read_string_pk")
+	table2, err := TableNew("test_read_string_pk")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
+	if table2 == nil {
+		t.Fatal("TableNew 失败")
+	}
 	table2.SetField("user_id", "user123")
 	table2.SetField("name", "Jane Smith")
 	table2.SetField("age", 25)
@@ -467,7 +539,7 @@ func TestTableRead(t *testing.T) {
 
 	// 读取字符串主键的记录
 	record = table2.Read("user123")
-	stringPkFields := table.RecordToMap(record)
+	stringPkFields := table2.ParseValue(record)
 	if stringPkFields == nil {
 		t.Fatal("读取字符串主键记录失败")
 	}
@@ -479,7 +551,10 @@ func TestTableRead(t *testing.T) {
 
 func TestCRUDOperations(t *testing.T) {
 	// 创建测试表
-	table := TableNew("test_crud")
+	table, err := TableNew("test_crud")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
@@ -493,14 +568,14 @@ func TestCRUDOperations(t *testing.T) {
 	table.SetField("age", 30)
 	table.SetField("city", "New York")
 
-	err := table.Insert()
+	err = table.Insert()
 	if err != nil {
 		t.Fatalf("Insert 失败: %v", err)
 	}
 
 	// 验证插入是否成功
 	record := table.Read(1)
-	insertedFields := table.RecordToMap(record)
+	insertedFields := table.ParseValue(record)
 	if insertedFields == nil {
 		t.Fatal("插入失败，无法读取记录")
 	}
@@ -527,7 +602,7 @@ func TestCRUDOperations(t *testing.T) {
 
 	// 验证更新是否成功
 	record = table.Read(1)
-	updatedFields := table.RecordToMap(record)
+	updatedFields := table.ParseValue(record)
 	if updatedFields == nil {
 		t.Fatal("更新失败，无法读取记录")
 	}
@@ -550,7 +625,7 @@ func TestCRUDOperations(t *testing.T) {
 
 	// 验证删除是否成功
 	record = table.Read(1)
-	deletedFields := table.RecordToMap(record)
+	deletedFields := table.ParseValue(record)
 	if deletedFields != nil {
 		t.Error("删除失败，记录仍然存在")
 	}
@@ -571,7 +646,13 @@ func compareStringSlices(a, b []string) bool {
 // TestSearch 测试Search方法的功能
 func TestSearch(t *testing.T) {
 	// 创建测试表
-	table := TableNew("test_search")
+	table, err := TableNew("test_search")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
+	if table == nil {
+		t.Fatal("TableNew 失败")
+	}
 	table.SetPrimaryValue("id")
 	table.AddIndex([]string{"name"})
 	table.AddFullTextField("description")
@@ -605,7 +686,9 @@ func TestSearch(t *testing.T) {
 			//fmt.Printf("dataIter.Key(): %v\n", dataIter.Key())
 			fmt.Printf("key: %s, value: %s\n", dataIter.Key(), dataIter.Value())
 		}
+		dataIter.Release()
 	})
+
 	// 测试遍历表所有数据
 	t.Run("ForData", func(t *testing.T) {
 		// 使用ForData方法遍历所有数据
@@ -613,11 +696,13 @@ func TestSearch(t *testing.T) {
 		results := dataIter.For(true)
 		fmt.Printf("len(results): %v\n", len(results))
 		//fmt.Printf("results: %v\n", results)
+		dataIter.Release()
 	})
 	// 测试1: 主键搜索
 	t.Run("PrimaryKeySearch", func(t *testing.T) {
 		// 使用SearchData方法搜索主键为3的记录
-		dataIter := table.SearchData("id", 3)
+		table.SetField("id", 3)
+		dataIter := table.SearchData("id")
 		results := dataIter.For(true)
 		if len(results) != 1 {
 			t.Errorf("主键搜索预期返回1条记录，实际返回%d条", len(results))
@@ -625,10 +710,11 @@ func TestSearch(t *testing.T) {
 		}
 
 		// 验证返回的数据是否正确
-		result := table.RecordToMap(results[0])
+		result := table.ParseValue(results[0])
 		if result["id"] != 3.0 || result["name"] != "Charlie" {
 			t.Errorf("主键搜索返回的数据不正确，预期: {id: 3, name: 'Charlie'}, 实际: %v", result)
 		}
+		dataIter.Release()
 	})
 
 	// 测试2: 索引字段搜索
@@ -640,9 +726,9 @@ func TestSearch(t *testing.T) {
 			t.Errorf("索引搜索预期返回1条记录，实际返回%d条", len(results))
 			return
 		}
-
+		dataIter.Release()
 		// 验证返回的数据是否正确
-		result := table.RecordToMap(results[0])
+		result := table.ParseValue(results[0])
 		if result["id"] != 3.0 {
 			t.Errorf("索引搜索返回的数据不正确，预期: {id: 3}, 实际: %v", result)
 		}
@@ -657,16 +743,18 @@ func TestSearch(t *testing.T) {
 			t.Error("全文索引搜索预期返回至少1条记录，实际返回0条")
 			return
 		}
-
+		dataIter.Release()
 	})
 
 	// 测试4: 搜索不存在的数据
 	t.Run("SearchNonExistent", func(t *testing.T) {
+		table.SetField("id", 100)
 		// 使用SearchData方法搜索不存在的id
-		dataIter := table.SearchData("id", 100)
+		dataIter := table.SearchData("id")
 		results := dataIter.For(true)
 		if len(results) != 0 {
 			t.Errorf("搜索不存在的数据预期返回0条记录，实际返回%d条", len(results))
 		}
+		dataIter.Release()
 	})
 }

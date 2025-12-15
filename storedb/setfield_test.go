@@ -8,7 +8,10 @@ import (
 // TestSetField 测试SetField函数
 func TestSetField(t *testing.T) {
 	// 创建一个新表
-	table := TableNew("test_setfield")
+	table, err := TableNew("test_setfield")
+	if err != nil {
+		t.Fatalf("创建测试表失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
@@ -51,14 +54,17 @@ func TestSetField(t *testing.T) {
 // TestSetFieldWithPrimary 测试SetField与SetPrimaryValue结合使用
 func TestSetFieldWithPrimary(t *testing.T) {
 	// 创建一个新表
-	table := TableNew("test_setfield_primary")
+	table, err := TableNew("test_setfield_primary")
+	if err != nil {
+		t.Fatalf("创建测试表失败: %v", err)
+	}
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
 
 	// 先设置id字段，然后再设置为主键
 	table.SetField("id", 1)
-	err := table.SetPrimaryValue("id")
+	err = table.SetPrimaryValue("id")
 	if err != nil {
 		t.Errorf("SetPrimaryValue 失败: %v", err)
 	}
