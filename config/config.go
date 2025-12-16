@@ -20,6 +20,7 @@ type Config struct {
 // SystemConfig 系统配置
 type SystemConfig struct {
 	Port     int    `yaml:"port"`
+	DbPath   string `yaml:"dbpath"`
 	Password string `yaml:"password"`
 }
 
@@ -48,11 +49,13 @@ func LoadConfig(filePath string) (*Config, error) {
 
 func init() {
 	// 加载配置文件，尝试多个可能的路径
-
 	var loadErr error
-
 	// 尝试当前目录
-	Cfg, loadErr = LoadConfig("config.yaml")
+	currentDir, err := os.Getwd()
+	if err != nil {
+		os.Stderr.WriteString("警告：获取当前工作目录失败，使用默认值\n")
+	}
+	Cfg, loadErr = LoadConfig(filepath.Join(currentDir, "config.yaml"))
 	if loadErr != nil {
 		// 尝试上级目录
 		Cfg, loadErr = LoadConfig("../config.yaml")

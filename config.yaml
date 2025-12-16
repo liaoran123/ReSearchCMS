@@ -1,6 +1,7 @@
 ## 配置文件
 system:
   port: 9981 # 端口号
+  dbpath: "" # 数据库路径
   password: "123456" # 密码
   # 全局数据迭代器缓存配置
 table_data_cache:

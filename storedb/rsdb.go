@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"research/config"
 	"sync"
 
 	"github.com/syndtr/goleveldb/leveldb"
@@ -22,6 +23,10 @@ var (
 	}
 )
 
+func init() {
+	OpenDb()
+}
+
 // rsdb struct 使用单例模式，确保只能有一个实例
 type rsdb struct {
 	Opts *opt.Options
@@ -29,7 +34,7 @@ type rsdb struct {
 }
 
 // 保证所有连接都是使用RsDB
-func OpenDb(dbpath string) *rsdb {
+func OpenDb() *rsdb {
 	//使用全局RsDB，确保db 只有一个实例连接
 	if RsDB == nil {
 		RsDB = &rsdb{
@@ -38,7 +43,7 @@ func OpenDb(dbpath string) *rsdb {
 			},
 		}
 	}
-	RsDB.InitDB(dbpath)
+	RsDB.InitDB(config.Cfg.System.DbPath)
 	return RsDB
 }
 
@@ -52,7 +57,7 @@ func (s *rsdb) InitDB(dbpath string) error {
 	// 获取当前工作目录
 	currentDir, err := os.Getwd()
 	if err != nil {
-		log.Fatal("获取当前工作目录失败:", err)
+		os.Stderr.WriteString("警告：获取当前工作目录失败，使用默认值\n")
 	}
 	// 构建数据库目录的绝对路径
 	// 在当前工作目录下创建rsdbdb文件夹
