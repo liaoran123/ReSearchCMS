@@ -54,14 +54,17 @@ func (s *rsdb) InitDB(dbpath string) error {
 		// 数据库已经初始化，直接返回
 		return nil
 	}
-	// 获取当前工作目录
-	currentDir, err := os.Getwd()
-	if err != nil {
-		os.Stderr.WriteString("警告：获取当前工作目录失败，使用默认值\n")
+	currentDir := dbpath
+	var absolutePath string
+	var err error
+	// 获取当前的文件夹目录os.Getwd()=.../storedb/
+	if dbpath == "" {
+		currentDir, err = os.Getwd()
+		if err != nil {
+			os.Stderr.WriteString("警告：获取当前工作目录失败，使用默认值\n")
+		}
+		absolutePath = filepath.Join(currentDir, "db")
 	}
-	// 构建数据库目录的绝对路径
-	// 在当前工作目录下创建rsdbdb文件夹
-	absolutePath := filepath.Join(currentDir, dbpath)
 	// 使用 filepath.Clean() 确保路径跨平台兼容
 	// 它会将路径转换为当前操作系统的路径分隔符，并处理 . 和 ..
 	cleanPath := filepath.Clean(absolutePath)

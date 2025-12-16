@@ -51,9 +51,6 @@ func TableNew(name string) (*Table, error) {
 		fmt.Printf("表名 '%s' 不能包含分隔符 '%s'\n", name, SPLIT)
 		return nil, fmt.Errorf("表名 '%s' 不能包含分隔符 '%s'", name, SPLIT)
 	}
-	if RsDB == nil {
-		OpenDb("db")
-	}
 	return &Table{
 		name:    name,
 		fields:  make(map[string]any),
@@ -88,7 +85,33 @@ func (t *Table) MaxAutoValue() int64 {
 	} else {
 		target = t.fields[t.primary]
 	}
-	return Bytes(rkey).ToAny(target).(int64)
+	r := Bytes(rkey).ToAny(target)
+	// 判断 r 的类型并确保转换为 int64
+	//return r.(int64) 这样会异常，莫名其妙。
+	switch v := r.(type) {
+	case int64:
+		return v
+	case int:
+		return int64(v)
+	case int32:
+		return int64(v)
+	case int16:
+		return int64(v)
+	case int8:
+		return int64(v)
+	case uint64:
+		return int64(v)
+	case uint32:
+		return int64(v)
+	case uint16:
+		return int64(v)
+	case uint8:
+		return int64(v)
+	default:
+		// 如果类型不匹配，返回默认值 1
+		return int64(1)
+	}
+
 }
 
 /*
@@ -117,15 +140,19 @@ func (t *Table) MaxAutoValue() int64 {
 		return nil
 	}
 
-func (t *Table) SetFields(fields map[string]any) error {
-	for field, value := range fields {
-		if err := t.SetField(field, value); err != nil {
-			return err
+	func (t *Table) SetFields(fields map[string]any) error {
+		for field, value := range fields {
+			if err := t.SetField(field, value); err != nil {
+				return err
+			}
 		}
+		return nil
 	}
-	return nil
-}
 */
+
+func (t *Table) SetFields(fields map[string]any) {
+	t.fields = fields
+}
 
 /*
 // nil即表示使用自动增值，使用自动增值每次都需要将主键值设置为nil
@@ -195,7 +222,7 @@ func (t *Table) GetPrimaryPrefixValue() []byte {
 }
 */
 // 获取索引值
-func (t *Table) GetIndexValue(fieldsBytes *map[string][]byte) [][]byte {
+func (t *Table) GetIndexsPrefix(fieldsBytes *map[string][]byte) [][]byte {
 	indexValues := make([][]byte, 0, len(t.index))
 	indexPrefix := []byte(t.GetIndexPrefix())
 	var exists bool
@@ -356,7 +383,7 @@ func (t *Table) RecordKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, p
 
 // put索引KV
 func (t *Table) IndexKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool) {
-	idxs := t.GetIndexValue(fieldsBytes)
+	idxs := t.GetIndexsPrefix(fieldsBytes)
 	value := (*fieldsBytes)[t.primary]
 	for _, idx := range idxs {
 		if put {
@@ -551,9 +578,9 @@ func (t *Table) For() iterator.Iterator {
 }
 
 // 遍历表所有数据
-func (t *Table) ForData() *TableData {
-	pfx := t.GetPrimaryPrefix()
-	return TableDataNew(t.rsdb.GetIterator([]byte(pfx)), t)
+func (t *Table) ForData() *Iter {
+	pfx := t.GetPrimaryPrefix() + SPLIT
+	return IterNew(t.rsdb.GetIterator([]byte(pfx)))
 }
 
 // 根据索引进行搜索返回迭代器
@@ -635,7 +662,7 @@ func (t *Table) MatchIndex(field ...string) ([]string, int) {
 
 // 根据字段名和值搜索返回数据迭代器
 // 缓存迭代器，避免每次for都重新创建迭代器
-func (t *Table) Search(field ...string) *TableData {
+func (t *Table) Search(field ...string) *Iter {
 	idx, idxType := t.MatchIndex(field...)
 	if idx == nil {
 		return nil
@@ -647,14 +674,14 @@ func (t *Table) Search(field ...string) *TableData {
 		key += v + ":" + AnyToStr(t.fields[v]) + SPLIT
 	}
 	// 检查缓存是否存在迭代器
-	td, _ := TDCache.Load(key)
-	if td == nil {
+	Iter, _ := IterCaches.Load(key)
+	if Iter == nil {
 		// 缓存不存在迭代器，创建新的迭代器
-		iter := t.SearchForIndex(idx, idxType)
-		td = TableDataNew(iter, t)
-		if td != nil {
-			TDCache.Store(key, td)
+		newiter := t.SearchForIndex(idx, idxType)
+		Iter = IterNew(newiter)
+		if Iter != nil {
+			IterCaches.Store(key, Iter)
 		}
 	}
-	return td
+	return Iter
 }

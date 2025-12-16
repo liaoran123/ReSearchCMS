@@ -48,7 +48,7 @@ func TestGetIterator(t *testing.T) {
 	// 测试1: 全库扫描
 	t.Run("FullScan", func(t *testing.T) {
 		iter := RsDB.GetIterator()
-		data := TableDataNew(iter, table)
+		data := IterNew(iter)
 		result := data.For(true)
 		if len(result) == 0 {
 			t.Error("全库扫描返回空结果")
@@ -64,7 +64,7 @@ func TestGetIterator(t *testing.T) {
 	t.Run("PrefixScan", func(t *testing.T) {
 		prefix := []byte("test_iterator-pk-")
 		iter := RsDB.GetIterator(prefix)
-		data := TableDataNew(iter, table)
+		data := IterNew(iter)
 		result := data.For(true)
 		// 打印result的原始内容
 		t.Logf("result的原始内容: %+v", result)
@@ -90,7 +90,7 @@ func TestGetIterator(t *testing.T) {
 		start := []byte("test_iterator-pk-1")
 		limit := []byte("test_iterator-pk-3") // 注意：leveldb的范围扫描是左闭右开的
 		iter := RsDB.GetIterator(start, limit)
-		data := TableDataNew(iter, table)
+		data := IterNew(iter)
 		result := data.For(true)
 		if len(result) != 2 {
 			t.Errorf("范围扫描返回的数据数量错误，期望2条，实际: %d", len(result))
@@ -101,7 +101,7 @@ func TestGetIterator(t *testing.T) {
 	t.Run("ReverseIteration", func(t *testing.T) {
 		prefix := []byte("test_iterator-pk-")
 		iter := RsDB.GetIterator(prefix)
-		data := TableDataNew(iter, table)
+		data := IterNew(iter)
 		result := data.For(false)
 		if len(result) != 3 {
 			t.Errorf("反向遍历返回的数据数量错误，期望3条，实际: %d", len(result))
@@ -122,7 +122,7 @@ func TestGetIterator(t *testing.T) {
 	t.Run("LimitParameter", func(t *testing.T) {
 		prefix := []byte("test_iterator-pk-")
 		iter := RsDB.GetIterator(prefix)
-		data := TableDataNew(iter, table)
+		data := IterNew(iter)
 		result := data.For(true, 2) // 只返回前2条数据
 		if len(result) != 2 {
 			t.Errorf("使用Limit参数返回的数据数量错误，期望2条，实际: %d", len(result))
@@ -163,7 +163,7 @@ func TestTableDataMethods(t *testing.T) {
 	// 测试First()方法
 	prefix := []byte("test_tabledata_methods-pk-")
 	iter := RsDB.GetIterator(prefix)
-	data := TableDataNew(iter, table)
+	data := IterNew(iter)
 	key, value := data.First()
 	if key == nil || value == nil {
 		t.Error("First()方法返回空值")

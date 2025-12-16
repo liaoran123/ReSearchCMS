@@ -1,4 +1,4 @@
-package syncpool
+package pool
 
 import (
 	"runtime"

@@ -335,12 +335,10 @@ func (b Bytes) Split(sp ...byte) [][]byte {
 	for i := 0; i < blen; i++ {
 		c := b[i]
 		if c == split {
-			// 检查是否是连续分隔符
+			//是连续分隔符，则是转义，只需添加一个分隔符到当前切片进行还原,并跳过下一个分隔符
 			if i+1 < blen && b[i+1] == split {
-				// 连续分隔符，添加到当前切片
 				s = append(s, c)
-				s = append(s, c)
-				i++ // 跳过下一个分隔符
+				i++
 			} else {
 				// 单个分隔符，分割切片
 				if len(s) > 0 {

@@ -7,11 +7,11 @@ import (
 )
 
 // 全局数据迭代器缓存，默认超时时间为5分钟
-var TDCache *TableDataCache
+var IterCaches *IterCache
 
 func init() {
 	// 使用配置初始化缓存
-	TableDataCacheNew(config.Cfg.TableDataCache.Max, config.Cfg.TableDataCache.Timeout)
+	IterCacheNew(config.Cfg.IterCache.Max, config.Cfg.IterCache.Timeout)
 	/*// 启动定时器，每5分钟执行一次CheckAllExpire
 	// 定时器太耗资源
 	go func() {
@@ -25,8 +25,8 @@ func init() {
 }
 
 // 数据迭代器缓存
-type TableDataCache struct {
-	td sync.Map
+type IterCache struct {
+	iterMap sync.Map
 	//最新命中时间
 	hit map[string]time.Time
 	//超时时间
@@ -34,49 +34,49 @@ type TableDataCache struct {
 	max     int
 }
 
-func TableDataCacheNew(max int, timeout time.Duration) *TableDataCache {
-	// 初始化全局数据迭代器缓存TDCache，保证在多线程环境下安全，只有唯一一个实例
-	TDCache = &TableDataCache{
-		td:      sync.Map{},
+func IterCacheNew(max int, timeout time.Duration) *IterCache {
+	// 初始化全局数据迭代器缓存IterCaches，保证在多线程环境下安全，只有唯一一个实例
+	IterCaches = &IterCache{
+		iterMap: sync.Map{},
 		hit:     make(map[string]time.Time),
 		timeout: timeout,
 		max:     max,
 	}
-	return TDCache
+	return IterCaches
 }
 
 // 存储数据迭代器
-func (c *TableDataCache) Store(key string, td *TableData) {
+func (c *IterCache) Store(key string, iter *Iter) {
 	// 当缓存中的数据迭代器数量超过最大容量的90%时，触发过期检查
 	if len(c.hit) > c.max/10*9 {
 		go c.CheckAllExpire()
 	}
-	c.td.Store(key, td)
+	c.iterMap.Store(key, iter)
 	if _, ok := c.hit[key]; ok {
 		c.hit[key] = time.Now()
 	}
 }
 
 // 加载数据迭代器
-func (c *TableDataCache) Load(key string) (*TableData, bool) {
-	td, ok := c.td.Load(key)
+func (c *IterCache) Load(key string) (*Iter, bool) {
+	iter, ok := c.iterMap.Load(key)
 	if ok {
 		c.hit[key] = time.Now()
-		return td.(*TableData), ok
+		return iter.(*Iter), ok
 	}
 	return nil, ok
 }
 
 // 检查数据迭代器是否过期，过期则删除
-func (c *TableDataCache) CheckExpire(key string) bool {
+func (c *IterCache) CheckExpire(key string) bool {
 	if hit, ok := c.hit[key]; ok {
 		if time.Since(hit) > c.timeout {
-			if val, ok := c.td.Load(key); ok {
-				if td, ok := val.(*TableData); ok {
-					td.Release() // 删除前先释放数据迭代器
+			if val, ok := c.iterMap.Load(key); ok {
+				if iter, ok := val.(*Iter); ok {
+					iter.Release() // 删除前先释放数据迭代器
 				}
 			}
-			c.td.Delete(key)
+			c.iterMap.Delete(key)
 			delete(c.hit, key)
 			return true
 		}
@@ -85,7 +85,7 @@ func (c *TableDataCache) CheckExpire(key string) bool {
 }
 
 // 检查所有数据迭代器是否过期，过期则删除
-func (c *TableDataCache) CheckAllExpire() {
+func (c *IterCache) CheckAllExpire() {
 	for key := range c.hit {
 		c.CheckExpire(key)
 	}

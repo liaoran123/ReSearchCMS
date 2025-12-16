@@ -3,6 +3,7 @@ package storedb
 
 import (
 	"bytes"
+	"encoding/binary"
 	"fmt"
 	"testing"
 )
@@ -282,7 +283,7 @@ func TestGetIndexValue(t *testing.T) {
 
 	// 获取索引值
 	fieldsBytes := table.FieldsToBytes(&fields)
-	indexValues := table.GetIndexValue(&fieldsBytes)
+	indexValues := table.GetIndexsPrefix(&fieldsBytes)
 
 	// 验证索引值数量
 	if len(indexValues) != 2 {
@@ -290,8 +291,8 @@ func TestGetIndexValue(t *testing.T) {
 	}
 
 	// 验证索引值格式
-	expectedIndex1 := []byte("test_get_index_value-idx-\"John Doe\"")
-	expectedIndex2 := []byte("test_get_index_value-idx-30-\"New York\"")
+	expectedIndex1 := []byte("test_get_index_value-idx-John Doe")
+	expectedIndex2 := bytes.Join([][]byte{[]byte("test_get_index_value-idx-"), IntToBytes(30, binary.BigEndian), []byte(SPLIT), []byte("New York")}, []byte(""))
 
 	if !bytes.Equal(indexValues[0], expectedIndex1) && !bytes.Equal(indexValues[0], expectedIndex2) {
 		t.Errorf("索引值1错误，期望: %s 或 %s, 实际: %s", expectedIndex1, expectedIndex2, indexValues[0])
@@ -342,7 +343,7 @@ func TestTableInitAuto(t *testing.T) {
 		fields := table2.GetAllFields()
 		fields["id"] = i
 		fields["name"] = fmt.Sprintf("User %d", i)
-		if err := table2.Insert(&fields); err != nil {
+		if err = table2.Insert(&fields); err != nil {
 			t.Fatalf("插入测试数据失败: %v", err)
 		}
 	}
@@ -522,12 +523,12 @@ func TestCRUDOperations(t *testing.T) {
 		t.Errorf("插入的姓名错误，期望: John Doe, 实际: %v", insertedFields["name"])
 	}
 
-	if insertedFields["age"] != 30.0 {
+	if insertedFields["age"] != 30 {
 		t.Errorf("插入的年龄错误，期望: 30, 实际: %v", insertedFields["age"])
 	}
 
 	// 测试更新操作
-	updateFields := map[string]interface{}{
+	updateFields := map[string]any{
 		"id":   1,
 		"age":  31,
 		"city": "Los Angeles",
@@ -545,7 +546,7 @@ func TestCRUDOperations(t *testing.T) {
 		t.Fatal("更新失败，无法读取记录")
 	}
 
-	if updatedFields["age"] != 31.0 {
+	if updatedFields["age"] != 31 {
 		t.Errorf("更新的年龄错误，期望: 31, 实际: %v", updatedFields["age"])
 	}
 
@@ -608,7 +609,7 @@ func TestTableSearch(t *testing.T) {
 		{"id": nil, "name": "Eve nil", "age": 45, "description": "Eve is a manager nil"},
 		{"id": nil, "name": "Eve nil1", "age": 45, "description": "Eve is a manager nil1"},
 	}
-
+	table.SetFields(data[0])
 	for _, item := range data {
 		fields := table.GetAllFields()
 		fields["id"] = item["id"]
@@ -624,17 +625,31 @@ func TestTableSearch(t *testing.T) {
 		dataIter := table.For()
 		for dataIter.Next() {
 			//fmt.Printf("dataIter.Key(): %v\n", dataIter.Key())
-			fmt.Printf("key: %s, value: %s\n", dataIter.Key(), dataIter.Value())
+			//fmt.Printf("key: %s, value: %s\n", dataIter.Key(), dataIter.Value())
+			val := table.ParseValue(dataIter.Value())
+			fmt.Printf("val: %v\n", val)
 		}
 		dataIter.Release()
 	})
-
+	fmt.Println("-----------------")
 	// 测试遍历表所有数据
 	t.Run("ForData", func(t *testing.T) {
 		// 使用ForData方法遍历所有数据
 		dataIter := table.ForData()
+		for {
+			k, v := dataIter.Next()
+			fmt.Printf("key: %s, value: %s\n", k, v)
+			if k == nil {
+				break
+			}
+		}
 		results := dataIter.For(true)
-		fmt.Printf("len(results): %v\n", len(results))
+
+		records := make(map[string]any)
+		for _, item := range results {
+			records = table.ParseValue(item)
+			fmt.Printf("records: %v\n", records)
+		}
 		//fmt.Printf("results: %v\n", results)
 		dataIter.Release()
 	})
