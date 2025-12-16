@@ -12,34 +12,36 @@ func TestGetIterator(t *testing.T) {
 	if err != nil {
 		t.Fatalf("创建测试表失败: %v", err)
 	}
-	table.SetField("id", 1)
-	table.SetField("name", "John Doe")
-	table.SetField("age", 30)
-	table.SetField("city", "New York")
+	// 设置一些字段值
+	fields := table.GetAllFields()
+	fields["id"] = 1
+	fields["name"] = "John Doe"
+	fields["age"] = 30
+	fields["city"] = "New York"
 
 	// 设置主键
 	table.SetPrimaryValue("id")
 
 	// 插入测试数据
-	if err := table.Insert(); err != nil {
+	if err := table.Insert(&fields); err != nil {
 		t.Fatalf("插入测试数据失败: %v", err)
 	}
 
 	// 插入第二条测试数据
-	table.SetField("id", 2)
-	table.SetField("name", "Jane Smith")
-	table.SetField("age", 25)
-	table.SetField("city", "Los Angeles")
-	if err := table.Insert(); err != nil {
+	fields["id"] = 2
+	fields["name"] = "Jane Smith"
+	fields["age"] = 25
+	fields["city"] = "Los Angeles"
+	if err := table.Insert(&fields); err != nil {
 		t.Fatalf("插入第二条测试数据失败: %v", err)
 	}
 
 	// 插入第三条测试数据
-	table.SetField("id", 3)
-	table.SetField("name", "Bob Johnson")
-	table.SetField("age", 35)
-	table.SetField("city", "Chicago")
-	if err := table.Insert(); err != nil {
+	fields["id"] = 3
+	fields["name"] = "Bob Johnson"
+	fields["age"] = 35
+	fields["city"] = "Chicago"
+	if err := table.Insert(&fields); err != nil {
 		t.Fatalf("插入第三条测试数据失败: %v", err)
 	}
 
@@ -129,9 +131,9 @@ func TestGetIterator(t *testing.T) {
 
 	// 清理测试数据
 	for _, id := range []int{1, 2, 3} {
-		table.SetField("id", id)
+		fields["id"] = id
 		table.SetPrimaryValue("id")
-		if err := table.Delete(); err != nil {
+		if err := table.Delete(&fields); err != nil {
 			t.Errorf("删除测试数据失败 (id=%d): %v", id, err)
 		}
 	}
@@ -144,15 +146,17 @@ func TestTableDataMethods(t *testing.T) {
 	if err != nil {
 		t.Fatalf("创建测试表失败: %v", err)
 	}
-	table.SetField("id", 1)
-	table.SetField("name", "John Doe")
-	table.SetField("age", 30)
+	// 设置一些字段值
+	fields := table.GetAllFields()
+	fields["id"] = 1
+	fields["name"] = "John Doe"
+	fields["age"] = 30
 
 	// 设置主键
 	table.SetPrimaryValue("id")
 
 	// 插入测试数据
-	if err := table.Insert(); err != nil {
+	if err := table.Insert(&fields); err != nil {
 		t.Fatalf("插入测试数据失败: %v", err)
 	}
 
@@ -170,13 +174,13 @@ func TestTableDataMethods(t *testing.T) {
 		t.Error("First()方法返回的键不包含预期的前缀")
 	}
 
-	// 使用Table.ParseValue方法解析数据，而不是json.Unmarshal
-	fields := table.ParseValue(value)
-	if fields == nil {
+	// 测试使用Table.ParseValue方法解析数据，而不是json.Unmarshal
+	parsedFields := table.ParseValue(value)
+	if parsedFields == nil {
 		t.Error("解析数据失败")
 	} else {
-		if fields["name"] != "John Doe" {
-			t.Errorf("数据内容错误，期望name为John Doe，实际为: %v", fields["name"])
+		if parsedFields["name"] != "John Doe" {
+			t.Errorf("数据内容错误，期望name为John Doe，实际为: %v", parsedFields["name"])
 		}
 	}
 
@@ -196,9 +200,9 @@ func TestTableDataMethods(t *testing.T) {
 	data.Release()
 
 	// 清理测试数据
-	table.SetField("id", 1)
+	fields["id"] = 1
 	table.SetPrimaryValue("id")
-	if err := table.Delete(); err != nil {
+	if err := table.Delete(&fields); err != nil {
 		t.Errorf("删除测试数据失败: %v", err)
 	}
 }

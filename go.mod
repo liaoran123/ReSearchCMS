@@ -11,4 +11,7 @@ require (
 	golang.org/x/sys v0.39.0 // indirect
 )
 
-require github.com/syndtr/goleveldb v1.0.0
+require (
+	github.com/syndtr/goleveldb v1.0.0
+	gopkg.in/yaml.v3 v3.0.1
+)

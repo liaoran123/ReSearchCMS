@@ -1,20 +1,19 @@
 package storedb
 
 import (
+	"research/config"
 	"sync"
 	"time"
 )
 
-// 数据迭代器缓存默认超时时间
-var timeout time.Duration = time.Minute * 5
-
 // 全局数据迭代器缓存，默认超时时间为5分钟
 var TDCache *TableDataCache
 
-// 启动定时器，每5分钟执行一次CheckAllExpire
 func init() {
-	TableDataCacheNew(10000, timeout)
-	/*定时器太耗资源
+	// 使用配置初始化缓存
+	TableDataCacheNew(config.Cfg.TableDataCache.Max, config.Cfg.TableDataCache.Timeout)
+	/*// 启动定时器，每5分钟执行一次CheckAllExpire
+	// 定时器太耗资源
 	go func() {
 		ticker := time.NewTicker(timeout)
 		defer ticker.Stop()

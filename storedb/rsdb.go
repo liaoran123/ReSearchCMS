@@ -30,13 +30,16 @@ type rsdb struct {
 
 // 保证所有连接都是使用RsDB
 func OpenDb(dbpath string) *rsdb {
-	RsDB = &rsdb{
-		Opts: &opt.Options{
-			// 示例：最大打开文件数、写入缓存等可在此配置
-		},
+	//使用全局RsDB，确保db 只有一个实例连接
+	if RsDB == nil {
+		RsDB = &rsdb{
+			Opts: &opt.Options{
+				// 示例：最大打开文件数、写入缓存等可在此配置
+			},
+		}
 	}
 	RsDB.InitDB(dbpath)
-	return RsDB //公共db，即保证所有连接都是使用该唯一db
+	return RsDB
 }
 
 // InitDB 初始化数据库连接

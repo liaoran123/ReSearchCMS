@@ -6,6 +6,7 @@ import (
 	"bytes" //设置一个系统变量 GOEXPERIMENT=jsonv2 开启v2
 	"fmt"
 	"maps"
+	"reflect"
 	"slices"
 	"strings"
 	"sync/atomic"
@@ -64,29 +65,13 @@ func TableNew(name string) (*Table, error) {
 
 // 初始化自动增值的值
 func (t *Table) InitAuto() {
-	// 检查主键是否已经显式设置
-	if t.fields[t.primary] != nil {
-		// 如果主键已经显式设置，则不更新计数器
-		return
-	}
 	maxValue := t.MaxAutoValue()
-	// 根据不同类型进行转换
-	switch v := maxValue.(type) {
-	case int:
-		t.counter.Store(int64(v))
-	case int64:
-		t.counter.Store(v)
-	case float64:
-		// JSON解析数字默认是float64
-		t.counter.Store(int64(v))
-	default:
-		// 默认值
-		t.counter.Store(1)
-	}
+	// MaxAutoValue现在直接返回int64类型
+	t.counter.Store(maxValue)
 }
 
-// 获取最大自动增值记录的主键值
-func (t *Table) MaxAutoValue() any {
+// 获取当前最大自动增值记录的主键值
+func (t *Table) MaxAutoValue() int64 {
 	key := []byte(t.GetPrimaryPrefix() + SPLIT)
 	iter := t.rsdb.GetIterator(key)
 	defer iter.Release()
@@ -99,36 +84,39 @@ func (t *Table) MaxAutoValue() any {
 	rkey = rkey[len(key):]
 	var target any
 	if t.fields[t.primary] == nil {
-		target = int(1)
+		target = int64(1)
 	} else {
 		target = t.fields[t.primary]
 	}
-	return Bytes(rkey).ToAny(target)
+	return Bytes(rkey).ToAny(target).(int64)
 }
 
+/*
 // 设置字段值,以第一次设置的数据类型为准
-func (t *Table) SetField(field string, value any) error {
-	// 字段名不能包含分隔符和标点符号
-	if strings.ContainsAny(field, SPLIT+"!\"#$%&'()*+,./:;<=>?@[\\]^`{|}~") {
-		return fmt.Errorf("字段名 '%s' 不能包含分隔符或标点符号", field)
-	}
-	if _, exists := t.fields[field]; !exists {
-		t.fields[field] = value
-	} else {
-		//主键值赋予nil值，是为了后续自动增值。故此为例外的不需要判断类型相同。
-		if field == t.primary && value == nil {
-			t.fields[field] = nil
-			return nil
+
+	func (t *Table) SetField(field string, value any) error {
+		// 字段名不能包含分隔符和标点符号
+		if strings.ContainsAny(field, SPLIT+"!\"#$%&'()*+,./:;<=>?@[\\]^`{|}~") {
+			return fmt.Errorf("字段名 '%s' 不能包含分隔符或标点符号", field)
 		}
-		// 已存在，判断类型是否相同
-		if fmt.Sprintf("%T", t.fields[field]) == fmt.Sprintf("%T", value) {
+		if _, exists := t.fields[field]; !exists {
 			t.fields[field] = value
 		} else {
-			return fmt.Errorf("字段 '%s' 类型冲突，期望: %T, 实际: %T", field, t.fields[field], value)
+			//主键值赋予nil值，是为了后续自动增值。故此为例外的不需要判断类型相同。
+			if field == t.primary && value == nil {
+				t.fields[field] = nil
+				return nil
+			}
+			// 已存在，判断类型是否相同
+			if fmt.Sprintf("%T", t.fields[field]) == fmt.Sprintf("%T", value) {
+				t.fields[field] = value
+			} else {
+				return fmt.Errorf("字段 '%s' 类型冲突，期望: %T, 实际: %T", field, t.fields[field], value)
+			}
 		}
+		return nil
 	}
-	return nil
-}
+
 func (t *Table) SetFields(fields map[string]any) error {
 	for field, value := range fields {
 		if err := t.SetField(field, value); err != nil {
@@ -137,17 +125,29 @@ func (t *Table) SetFields(fields map[string]any) error {
 	}
 	return nil
 }
+*/
 
+/*
 // nil即表示使用自动增值，使用自动增值每次都需要将主键值设置为nil
-func (t *Table) InitPrimary() {
-	if t.fields[t.primary] == nil {
-		if t.counter.Load() == int64(0) {
-			t.InitAuto()
+
+	func (t *Table) InitPrimary() {
+		if t.fields[t.primary] == nil {
+			if t.counter.Load() == int64(0) {
+				t.InitAuto()
+			}
+			t.fields[t.primary] = t.counter.Add(1)
 		}
-		t.fields[t.primary] = t.counter.Add(1)
 	}
+*/
+// 获取自动增值的值
+func (t *Table) AutoValue() int64 {
+	if t.counter.Load() == int64(0) {
+		t.counter.Store(t.MaxAutoValue())
+	}
+	return t.counter.Add(1)
 }
 
+/*
 // 将表所有字段转换为字节数组
 // 格式为: field1:value1-field2:value2,...
 func (t *Table) GetFieldsValue() []byte {
@@ -158,10 +158,13 @@ func (t *Table) GetFieldsValue() []byte {
 		}
 		sr += field + ":" + AnyToStr(value) + SPLIT
 	}
-	sr = sr[:len(sr)-len(SPLIT)]
+	// 移除最后一个分隔符
+	if len(sr) > 0 {
+		sr = sr[:len(sr)-len(SPLIT)]
+	}
 	return []byte(sr)
 }
-
+*/
 // 主键前缀
 func (t *Table) GetPrimaryPrefix() string {
 	return t.name + SPLIT + "pk" //+ SPLIT
@@ -177,6 +180,7 @@ func (t *Table) GetFullTextPrefix() string {
 	return t.name + SPLIT + "ft" //+ SPLIT
 }
 
+/*
 // 获取主键值
 func (t *Table) GetPrimaryValue() []byte {
 	t.InitPrimary()
@@ -189,28 +193,27 @@ func (t *Table) GetPrimaryPrefixValue() []byte {
 	val := t.GetPrimaryValue()
 	return bytes.Join([][]byte{pfx, val}, []byte(SPLIT))
 }
-
+*/
 // 获取索引值
-func (t *Table) GetIndexValue() [][]byte {
+func (t *Table) GetIndexValue(fieldsBytes *map[string][]byte) [][]byte {
 	indexValues := make([][]byte, 0, len(t.index))
 	indexPrefix := []byte(t.GetIndexPrefix())
-	var val []byte
 	var exists bool
-	var fieldValue any
+	var fieldValue []byte
 	for _, index := range t.index {
 		var idx bytes.Buffer
 		idx.Write(indexPrefix)
 		for _, field := range index {
 			// 获取字段值
-			fieldValue, exists = t.fields[field]
+			fieldValue, exists = (*fieldsBytes)[field]
 			// 如果字段不存在或值为nil，跳过该索引
 			if !exists || fieldValue == nil {
 				break
 			}
-			val = AnyToBytes(fieldValue)
+			//val = AnyToBytes(fieldValue)
 			// 在每个索引字段前添加分隔符（包括第一个）
 			idx.Write([]byte(SPLIT))
-			idx.Write(val)
+			idx.Write(fieldValue)
 		}
 		idxbyte := idx.Bytes()
 		// 索引值不能超过255字节
@@ -224,22 +227,22 @@ func (t *Table) GetIndexValue() [][]byte {
 
 // 获取全文索引值
 // 只支持字符串类型的全文索引，其他类型的字段值会被转换为字符串。
-func (t *Table) GetFullTextValue() [][]byte {
+func (t *Table) GetFullTextValue(fieldsBytes *map[string][]byte) [][]byte {
 	fullTextValues := make([][]byte, 0, len(t.fullText))
 	if t.ftlen == 0 {
 		t.ftlen = 5
 	}
 	fullTextPrefix := []byte(t.GetFullTextPrefix())
-	var fieldValue any
+	var fieldValue []byte
 	var exists bool
 	for _, field := range t.fullText {
 		// 获取字段的实际值
-		fieldValue, exists = t.fields[field]
+		fieldValue, exists = (*fieldsBytes)[field]
 		if !exists {
 			continue // 跳过不存在的字段
 		}
 		// 将字段值转换为字符串，全文索引只支持字符串
-		fieldStr := AnyToStr(fieldValue)
+		fieldStr := string(fieldValue)
 		// 对字段值进行分词
 		tokens := t.GetFullTextToken(fieldStr, int(t.ftlen))
 
@@ -311,7 +314,7 @@ func (t *Table) GetField(field string) (any, bool) {
 	return value, exists
 }
 
-// 获取所有字段
+// 获取所有字段值，用于添加记录时，直接复制，无需自行创建。
 func (t *Table) GetAllFields() map[string]any {
 	// 返回字段的副本，避免直接修改内部状态
 	result := make(map[string]any)
@@ -329,21 +332,32 @@ func (t *Table) SetFullTextLen(ftlen uint8) error {
 }
 
 // 添加主键记录
-func (t *Table) RecordKV(batch *leveldb.Batch, put bool) error {
-	pv := t.GetPrimaryPrefixValue()
-	pvFields := t.GetFieldsValue()
+func (t *Table) RecordKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool) error {
+	pfx := []byte(t.GetPrimaryPrefix())
+	key := bytes.Join([][]byte{pfx, (*fieldsBytes)[t.primary]}, []byte(SPLIT))
 	if put {
-		batch.Put(pv, pvFields)
+		var buf bytes.Buffer
+		var value []byte
+		//记录格式：field1:value1-field2:value2-...-fieldN:valueN-
+		for field, val := range *fieldsBytes {
+			value = Bytes([]byte(field)).Escape()
+			buf.WriteString(string(value))
+			buf.WriteString(":")
+			value = Bytes(val).Escape()
+			buf.Write(value)
+			buf.WriteString(SPLIT)
+		}
+		batch.Put(key, buf.Bytes())
 	} else {
-		batch.Delete(pv)
+		batch.Delete(key)
 	}
 	return nil
 }
 
 // put索引KV
-func (t *Table) IndexKV(batch *leveldb.Batch, put bool) {
-	idxs := t.GetIndexValue()
-	value := t.GetPrimaryValue()
+func (t *Table) IndexKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool) {
+	idxs := t.GetIndexValue(fieldsBytes)
+	value := (*fieldsBytes)[t.primary]
 	for _, idx := range idxs {
 		if put {
 			batch.Put(idx, value)
@@ -354,25 +368,68 @@ func (t *Table) IndexKV(batch *leveldb.Batch, put bool) {
 }
 
 // put全文索引KV
-func (t *Table) FullTextKV(batch *leveldb.Batch, put bool) {
-	idxs := t.GetFullTextValue()
-	value := t.GetPrimaryValue()
+func (t *Table) FullTextKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool) {
+	idxs := t.GetFullTextValue(fieldsBytes)
 	for _, idx := range idxs {
 		if put {
-			batch.Put(idx, value)
+			batch.Put(idx, (*fieldsBytes)[t.primary])
 		} else {
 			batch.Delete(idx)
 		}
 	}
 }
 
+// 检查类型是否匹配
+func (t *Table) CheckType(fields *map[string]any) error {
+	for field, value := range *fields {
+		fieldValue, exists := t.GetField(field)
+		// 只检查已经存在于表中的字段的类型
+		if exists {
+			// 检查类型是否匹配
+			//主键可以是nil，其他字段不能是nil
+			if field == t.primary && value == nil {
+				continue
+			}
+			if fieldValue != nil && reflect.TypeOf(fieldValue) != reflect.TypeOf(value) {
+				return fmt.Errorf("字段 '%s' 的类型 '%T' 与提供的值 '%T' 类型不匹配", field, fieldValue, value)
+			}
+		}
+	}
+	return nil
+}
+
+// 将数据转换为字节数组
+func (t *Table) FieldsToBytes(fields *map[string]any) map[string][]byte {
+	result := make(map[string][]byte, len(*fields))
+	for k, v := range *fields {
+		//如果主键是nil，则使用自动增值
+		if k == t.primary && v == nil {
+			v = t.AutoValue()
+		}
+		result[k] = AnyToBytes(v)
+	}
+	return result
+}
+
 // 插入记录
-func (t *Table) Insert() error {
+func (t *Table) Insert(fields *map[string]any) error {
+	// 检查是否提供了主键字段
+	_, ok := (*fields)[t.primary]
+	if !ok {
+		(*fields)[t.primary] = t.AutoValue()
+	}
+	// 检查字段类型是否匹配
+	if err := t.CheckType(fields); err != nil {
+		return err
+	}
+	// 转换字段为字节数组
+	fieldsBytes := t.FieldsToBytes(fields)
+
 	batch := Batch.Get().(*leveldb.Batch)
 	defer Batch.Put(batch)
-	t.RecordKV(batch, true)
-	t.IndexKV(batch, true)
-	t.FullTextKV(batch, true)
+	t.RecordKV(&fieldsBytes, batch, true)
+	t.IndexKV(&fieldsBytes, batch, true)
+	t.FullTextKV(&fieldsBytes, batch, true)
 	err := t.rsdb.Db.Write(batch, nil)
 	if err != nil {
 		return err
@@ -381,12 +438,23 @@ func (t *Table) Insert() error {
 }
 
 // 删除记录
-func (t *Table) Delete() error {
+func (t *Table) Delete(fields *map[string]any) error {
+	// 检查是否提供了主键字段
+	_, ok := (*fields)[t.primary]
+	if !ok {
+		return fmt.Errorf("删除操作必须提供主键字段 '%s'", t.primary)
+	}
+	// 检查字段类型是否匹配
+	if err := t.CheckType(fields); err != nil {
+		return err
+	}
+	// 转换字段为字节数组
+	fieldsBytes := t.FieldsToBytes(fields)
 	batch := Batch.Get().(*leveldb.Batch)
 	defer Batch.Put(batch)
-	t.RecordKV(batch, false)
-	t.IndexKV(batch, false)
-	t.FullTextKV(batch, false)
+	t.RecordKV(&fieldsBytes, batch, false)
+	t.IndexKV(&fieldsBytes, batch, false)
+	t.FullTextKV(&fieldsBytes, batch, false)
 	err := t.rsdb.Db.Write(batch, nil)
 	if err != nil {
 		return err
@@ -395,38 +463,30 @@ func (t *Table) Delete() error {
 }
 
 // 更新记录，由于项目基本没有更新操作，所以并不考虑性能和一致性。
-func (t *Table) Update(fields map[string]any) error {
+func (t *Table) Update(fields *map[string]any) error {
 	// 检查是否提供了主键字段
-	primaryValue, ok := fields[t.primary]
+	primaryValue, ok := (*fields)[t.primary]
 	if !ok {
 		return fmt.Errorf("更新操作必须提供主键字段 '%s'", t.primary)
 	}
-
 	// 读取旧记录
 	record := t.Read(primaryValue)
 	oldFields := t.ParseValue(record)
 	if oldFields == nil {
 		return fmt.Errorf("主键值 '%v' 的记录不存在", primaryValue)
 	}
-
 	// 创建新记录
 	newTable, _ := TableNew(t.name)
 	newTable.primary = t.primary
-
-	// 合并字段值
-	for k, v := range oldFields {
-		newTable.fields[k] = v
-	}
-	for k, v := range fields {
-		newTable.fields[k] = v
-	}
-
 	// 删除旧记录并插入新记录
-	if err := t.Delete(); err != nil {
+	if err := t.Delete(&oldFields); err != nil {
 		return err
 	}
-
-	return newTable.Insert()
+	newFields := make(map[string]any, len(oldFields))
+	// 合并旧记录和新记录的字段值
+	maps.Copy(newFields, oldFields)
+	maps.Copy(newFields, *fields)
+	return newTable.Insert(&newFields)
 }
 
 // 从按主键数据库读取记录

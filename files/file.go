@@ -67,7 +67,7 @@ func getXLSXTextContent(filePath string) (string, error) {
 
 	// 遍历所有工作表
 	for _, sheet := range xlFile.Sheets() {
-		buf.WriteString(fmt.Sprintf("工作表: %s\n", sheet.Name()))
+		fmt.Fprintf(&buf, "工作表: %s\n", sheet.Name())
 
 		// 遍历所有行
 		for _, row := range sheet.Rows() {

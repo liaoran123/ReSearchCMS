@@ -112,7 +112,7 @@ func TestReadFileContentForHTML(t *testing.T) {
     <p>这是一个段落。</p>
 </body>
 </html>`
-	if _, err := tmpFile.WriteString(testHTML); err != nil {
+	if _, err = tmpFile.WriteString(testHTML); err != nil {
 		t.Fatalf("写入测试内容失败: %v", err)
 	}
 	tmpFile.Close()

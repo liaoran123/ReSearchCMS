@@ -1,26 +1,14 @@
 package storedb
 
 import (
-	"bytes"
-
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 )
 
-/*
-var (
-	record = sync.Pool{
-		New: func() any {
-			return new([]any)
-		},
-	}
-)
-*/
 // 返回表数据或索引数据
 type TableData struct {
-	iter  iterator.Iterator
-	fn    map[bool]func() bool
-	top   map[bool]func() bool
-	table *Table
+	iter iterator.Iterator
+	fn   map[bool]func() bool
+	top  map[bool]func() bool
 }
 
 func TableDataNew(iter iterator.Iterator, table *Table) *TableData {
@@ -37,7 +25,6 @@ func TableDataNew(iter iterator.Iterator, table *Table) *TableData {
 			true:  iter.First,
 			false: iter.Last,
 		},
-		table: table,
 	}
 }
 
@@ -49,7 +36,7 @@ func (t *TableData) Setiter(iter iterator.Iterator) {
 // 遍历数据，esc为true时，从前往后遍历，false时，从后往前遍历
 // limit为遍历的范围，0表示从当前位置开始遍历，1表示从当前位置开始遍历，count个元素
 // 2个参数表示从start位置开始遍历，count个元素
-func (t *TableData) For(esc bool, limit ...int) (ret []map[string]any) {
+func (t *TableData) For(esc bool, limit ...int) (ret [][]byte) {
 	if !t.top[esc]() {
 		return nil
 	}
@@ -67,7 +54,7 @@ func (t *TableData) For(esc bool, limit ...int) (ret []map[string]any) {
 		count = limit[1]
 	}
 	if count > 0 {
-		ret = make([]map[string]any, 0, count)
+		ret = make([][]byte, 0, count)
 	}
 	loop := 0
 	// 处理当前位置的元素
@@ -75,9 +62,8 @@ func (t *TableData) For(esc bool, limit ...int) (ret []map[string]any) {
 		if loop < start {
 			loop++
 		} else {
-			// 解析值为map[string]any
-			v := t.table.ParseValue(t.iter.Value())
-			ret = append(ret, v)
+			// 解析值为map[string][]byte
+			ret = append(ret, t.iter.Value())
 			if count > 0 && len(ret) >= count {
 				break
 			}
@@ -135,29 +121,32 @@ func (t *TableData) ForFn(fn func(k, v []byte), esc bool, limit ...int) {
 	//t.iter.Release()
 }
 
+/*
 // 遍历数据获取主键值的map[any]bool集合，作为数据并集，交集等
-func (t *TableData) Map() (ret map[any]bool) {
-	if t.iter == nil {
-		return nil
-	}
-	if !t.iter.First() {
-		return nil
-	}
-	ret = make(map[any]bool)
-	var k, v, rk []byte
-	pytype := t.table.fields[t.table.primary]
-	for t.iter.Next() {
-		k = t.iter.Key()
-		v = t.iter.Value()
-		if bytes.Contains(v, []byte{':'}) { // 检查值是否包含冒号，有，则是记录
-			rk = k[len(t.table.GetPrimaryPrefix()+SPLIT):]
-			ret[Bytes(rk).ToAny(pytype)] = true
-		} else { // 索引数据
-			ret[StrToAny(string(v), pytype)] = true
+
+	func (t *TableData) Map() (ret map[any]bool) {
+		if t.iter == nil {
+			return nil
 		}
+		if !t.iter.First() {
+			return nil
+		}
+		ret = make(map[any]bool)
+		var k, v, rk []byte
+		pytype := t.table.fields[t.table.primary]
+		for t.iter.Next() {
+			k = t.iter.Key()
+			v = t.iter.Value()
+			if bytes.Contains(v, []byte{':'}) { // 检查值是否包含冒号，有，则是记录
+				rk = k[len(t.table.GetPrimaryPrefix()+SPLIT):]
+				ret[Bytes(rk).ToAny(pytype)] = true
+			} else { // 索引数据
+				ret[StrToAny(string(v), pytype)] = true
+			}
+		}
+		return ret
 	}
-	return ret
-}
+*/
 func (t *TableData) First() (key []byte, value []byte) {
 	if !t.iter.First() {
 		return nil, nil
