@@ -3,14 +3,12 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
+	"research/config"
 )
 
 func main() {
 	fmt.Println("考据级文档搜索引擎!免费版有广告，付费版无广告，企业版提供多维分析统计功能。")
-	execPath, _ := os.Executable()
-	execDir := filepath.Dir(execPath)
-	fmt.Println(execDir)
-	configPath := filepath.Join(execDir, "config.yaml")
-	fmt.Println(configPath)
+	if config.Cfg == nil {
+		os.Stderr.WriteString("警告：加载配置文件失败，使用默认值\n")
+	}
 }

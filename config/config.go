@@ -13,22 +13,38 @@ var Cfg *Config
 
 func init() {
 	// 加载配置文件，尝试多个可能的路径
-	execPath, loadErr := os.Executable() //测试运行时，os.Executable() 是当前目录的路径
-	if loadErr != nil {
-		os.Stderr.WriteString("警告：获取当前执行文件路径失败，使用默认值\n")
+	var err error
+
+	// 尝试执行文件所在目录的config.yaml
+	execPath, err := os.Executable()
+	if err == nil {
+		execDir := filepath.Dir(execPath)
+		configPath := filepath.Join(execDir, "config.yaml")
+		Cfg, err = LoadConfig(configPath)
 	}
-	execDir := filepath.Dir(execPath)
-	Cfg, loadErr = LoadConfig(filepath.Join(execDir, "config.yaml"))
-	if loadErr != nil {
-		// 尝试当前目录
-		currentDir, err := os.Getwd()
-		if err != nil {
-			os.Stderr.WriteString("警告：获取当前工作目录失败，使用默认值\n")
-		}
-		Cfg, loadErr = LoadConfig(filepath.Join(currentDir, "config.yaml"))
-		if loadErr != nil {
-			// 尝试上级目录
-			Cfg, loadErr = LoadConfig("../config.yaml")
+
+	if err != nil {
+		// 5. 尝试上级目录的config.yaml
+		Cfg, err = LoadConfig("../config.yaml")
+	}
+	if err != nil {
+		// 6. 尝试上上级目录的config.yaml
+		Cfg, err = LoadConfig("../../config.yaml")
+	}
+
+	if err != nil {
+		// 所有尝试都失败，使用默认配置
+		os.Stderr.WriteString("警告：所有配置文件路径都无法加载，使用默认值\n")
+		Cfg = &Config{
+			System: SystemConfig{
+				Port:     9981,
+				DbPath:   "db",
+				Password: "",
+			},
+			IterCache: IterCacheConfig{
+				Timeout: time.Minute * 5,
+				Max:     10000,
+			},
 		}
 	}
 }
