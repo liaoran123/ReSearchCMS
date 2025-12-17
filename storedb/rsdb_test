@@ -23,8 +23,12 @@ func TestGetIterator(t *testing.T) {
 	table.SetPrimary("id")
 
 	// 插入测试数据
-	if err := table.Insert(&fields); err != nil {
+	currentID, err := table.Insert(&fields)
+	if err != nil {
 		t.Fatalf("插入测试数据失败: %v", err)
+	}
+	if currentID != 1 {
+		t.Errorf("插入测试数据后，当前ID应为1，实际: %d", currentID)
 	}
 
 	// 插入第二条测试数据
@@ -32,8 +36,12 @@ func TestGetIterator(t *testing.T) {
 	fields["name"] = "Jane Smith"
 	fields["age"] = 25
 	fields["city"] = "Los Angeles"
-	if err := table.Insert(&fields); err != nil {
+	currentID, err = table.Insert(&fields)
+	if err != nil {
 		t.Fatalf("插入第二条测试数据失败: %v", err)
+	}
+	if currentID != 2 {
+		t.Errorf("插入第二条测试数据后，当前ID应为2，实际: %d", currentID)
 	}
 
 	// 插入第三条测试数据
@@ -41,8 +49,12 @@ func TestGetIterator(t *testing.T) {
 	fields["name"] = "Bob Johnson"
 	fields["age"] = 35
 	fields["city"] = "Chicago"
-	if err := table.Insert(&fields); err != nil {
+	currentID, err = table.Insert(&fields)
+	if err != nil {
 		t.Fatalf("插入第三条测试数据失败: %v", err)
+	}
+	if currentID != 3 {
+		t.Errorf("插入第三条测试数据后，当前ID应为3，实际: %d", currentID)
 	}
 
 	// 测试1: 全库扫描
@@ -156,8 +168,12 @@ func TestTableDataMethods(t *testing.T) {
 	table.SetPrimary("id")
 
 	// 插入测试数据
-	if err := table.Insert(&fields); err != nil {
+	currentID, err := table.Insert(&fields)
+	if err != nil {
 		t.Fatalf("插入测试数据失败: %v", err)
+	}
+	if currentID != 1 {
+		t.Errorf("插入测试数据后，当前ID应为1，实际: %d", currentID)
 	}
 
 	// 测试First()方法

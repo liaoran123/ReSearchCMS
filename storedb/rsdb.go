@@ -43,7 +43,7 @@ func OpenDb() *rsdb {
 			},
 		}
 	}
-	RsDB.InitDB(config.Cfg.System.DbPath)
+	RsDB.InitDB(config.Cfg.Db.DbPath)
 	return RsDB
 }
 

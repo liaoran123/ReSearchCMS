@@ -330,9 +330,12 @@ func TestTableRead(t *testing.T) {
 	table.SetPrimary("id")
 
 	// 插入测试数据
-	err = table.Insert(&fields)
+	currentID, err := table.Insert(&fields)
 	if err != nil {
 		t.Fatalf("插入测试数据失败: %v", err)
+	}
+	if currentID != 1 {
+		t.Errorf("插入测试数据后，当前ID应为1，实际: %d", currentID)
 	}
 
 	// 测试1: 正常读取已存在的记录
@@ -393,7 +396,7 @@ func TestTableRead(t *testing.T) {
 	table2.SetPrimary("user_id")
 
 	// 插入测试数据
-	err = table2.Insert(&fields)
+	_, err = table2.Insert(&fields)
 	if err != nil {
 		t.Fatalf("插入字符串主键测试数据失败: %v", err)
 	}
@@ -433,7 +436,7 @@ func TestCRUDOperations(t *testing.T) {
 	fields["name"] = "John Doe"
 	fields["age"] = uint8(30)
 	fields["city"] = "New York"
-	err = table.Insert(&fields)
+	_, err = table.Insert(&fields)
 	if err != nil {
 		t.Fatalf("Insert 失败: %v", err)
 	}
@@ -531,24 +534,30 @@ func TestTableSearch(t *testing.T) {
 
 	// 插入测试数据
 	data := []map[string]any{
-		{"id": 1, "name": "六月", "age": 25, "description": "古木阴阴六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
-		{"id": 2, "name": "Bob", "age": 30, "description": "Bob is a product manager"},
-		{"id": 3, "name": "Charlie", "age": 35, "description": "Charlie is a designer"},
-		{"id": 4, "name": "David", "age": 40, "description": "David is a developer"},
-		{"id": 5, "name": "Eve", "age": 45, "description": "Eve is a manager"},
-		{"id": 6, "name": "Alice", "age": 27, "description": "Alice is a software engineer"},
-		{"id": nil, "name": "Eve 49", "age": 49, "description": "Eve is a manager 49"}, //"id": nil 使用自动增值
-		{"id": nil, "name": "Eve 55", "age": 55, "description": "Eve is a manager 55"}, //"id": nil 使用自动增值
+		{"id": 1, "name": "六月", "age": uint8(25), "description": "古木阴阴六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+		{"id": 2, "name": "Bob", "age": uint8(30), "description": "Bob is a product manager"},
+		{"id": 3, "name": "Charlie", "age": uint8(35), "description": "Charlie is a designer"},
+		{"id": 4, "name": "David", "age": uint8(40), "description": "David is a developer"},
+		{"id": 5, "name": "Eve", "age": uint8(45), "description": "Eve is a manager"},
+		{"id": 6, "name": "Alice", "age": uint8(27), "description": "Alice is a software engineer"},
+		{"id": nil, "name": "Eve 49", "age": uint8(49), "description": "Eve is a manager 49"}, //"id": nil 使用自动增值
+		{"id": nil, "name": "Eve 55", "age": uint8(55), "description": "Eve is a manager 55"}, //"id": nil 使用自动增值
 	}
-	table.SetFields(data[0])
 	for _, item := range data {
 		fields := table.GetAllFields()
 		fields["id"] = item["id"]
 		fields["name"] = item["name"]
 		fields["age"] = item["age"]
 		fields["description"] = item["description"]
-		if err := table.Insert(&fields); err != nil {
+		currentID, err := table.Insert(&fields)
+		if err != nil {
 			t.Fatalf("插入测试数据失败: %v", err)
+		}
+		if item["id"] == nil {
+			continue
+		}
+		if currentID != ToInt64(item["id"]) {
+			t.Errorf("插入测试数据后，当前ID应为%v，实际: %d", ToInt64(item["id"]), currentID)
 		}
 	}
 	//测试遍历表所有kv

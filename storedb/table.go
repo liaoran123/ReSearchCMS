@@ -86,31 +86,8 @@ func (t *Table) MaxAutoValue() int64 {
 		target = t.fields[t.primary]
 	}
 	r := Bytes(rkey).ToAny(target)
-	// 判断 r 的类型并确保转换为 int64
-	//return r.(int64) 这样会异常，莫名其妙。
-	switch v := r.(type) {
-	case int64:
-		return v
-	case int:
-		return int64(v)
-	case int32:
-		return int64(v)
-	case int16:
-		return int64(v)
-	case int8:
-		return int64(v)
-	case uint64:
-		return int64(v)
-	case uint32:
-		return int64(v)
-	case uint16:
-		return int64(v)
-	case uint8:
-		return int64(v)
-	default:
-		// 如果类型不匹配，返回默认值 1
-		return int64(1)
-	}
+	// 使用 reflect 包进行类型转换，更灵活地处理各种数值类型
+	return ToInt64(r)
 
 }
 
@@ -364,28 +341,30 @@ func (t *Table) CheckType(fields *map[string]any) error {
 func (t *Table) FieldsToBytes(fields *map[string]any) map[string][]byte {
 	result := make(map[string][]byte, len(*fields))
 	for k, v := range *fields {
-		//如果主键是nil，则使用自动增值
-		if k == t.primary && v == nil {
-			v = t.AutoValue()
-		}
 		result[k] = AnyToBytes(v)
 	}
 	return result
 }
 
 // 插入记录
-func (t *Table) Insert(fields *map[string]any) error {
+func (t *Table) Insert(fields *map[string]any) (currentID int64, err error) {
 	if t.fields == nil {
-		return fmt.Errorf("表 '%s' 未设置字段和类型", t.name)
+		return 0, fmt.Errorf("表 '%s' 未设置字段和类型", t.name)
 	}
 	// 检查是否提供了主键字段
 	_, ok := (*fields)[t.primary]
 	if !ok {
-		(*fields)[t.primary] = t.AutoValue()
+		currentID = t.AutoValue()
+		(*fields)[t.primary] = currentID
+	} else {
+		// 使用ToInt64函数安全地将任何数值类型转换为int64
+		currentID = ToInt64((*fields)[t.primary])
+		// 将转换后的值放回fields中，确保类型一致
+		//(*fields)[t.primary] = currentID
 	}
 	// 检查字段类型是否匹配
-	if err := t.CheckType(fields); err != nil {
-		return err
+	if err = t.CheckType(fields); err != nil {
+		return 0, err
 	}
 	// 转换字段为字节数组
 	fieldsBytes := t.FieldsToBytes(fields)
@@ -395,11 +374,11 @@ func (t *Table) Insert(fields *map[string]any) error {
 	t.RecordKV(&fieldsBytes, batch, true)
 	t.IndexKV(&fieldsBytes, batch, true)
 	t.FullTextKV(&fieldsBytes, batch, true)
-	err := t.rsdb.Db.Write(batch, nil)
+	err = t.rsdb.Db.Write(batch, nil)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	return nil
+	return currentID, nil
 }
 
 // 删除记录
@@ -457,7 +436,11 @@ func (t *Table) Update(fields *map[string]any) error {
 	// 合并旧记录和新记录的字段值
 	maps.Copy(newFields, oldFields)
 	maps.Copy(newFields, *fields)
-	return newTable.Insert(&newFields)
+	_, err := newTable.Insert(&newFields)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 // 从按主键数据库读取记录

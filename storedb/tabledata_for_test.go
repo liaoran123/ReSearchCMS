@@ -13,26 +13,23 @@ func TestTableDataFor(t *testing.T) {
 	}
 
 	// 设置主键
-	table.primary = "id"
+	//table.primary = "id"
 	//预设表字段和类型
-	table.fields["id"] = 0
-	table.fields["name"] = "0"
-	table.fields["age"] = uint8(0)
-	table.fields["city"] = ""
-
+	fields := map[string]any{"id": 0, "name": "", "age": uint8(0), "city": ""}
+	table.SetFields(fields)
+	// 设置主键值
+	table.SetPrimary("id")
 	// 插入多条测试数据
-	for i := 1; i <= 5; i++ {
+	for i := 1; i <= 49; i++ {
 		fields := table.GetAllFields()
 		fields["id"] = i
 		fields["name"] = "User" + string(rune('0'+i))
 		fields["age"] = uint8(20 + i)
 		fields["city"] = "City" + string(rune('A'+i-1))
 
-		// 设置主键值
-		table.SetPrimary("id")
-
 		// 插入数据
-		if err := table.Insert(&fields); err != nil {
+		_, err = table.Insert(&fields)
+		if err != nil {
 			t.Fatalf("插入测试数据失败: %v", err)
 		}
 	}
@@ -53,8 +50,8 @@ func TestTableDataFor(t *testing.T) {
 
 	// 测试1: 正向遍历所有数据
 	result := tableData.For(true)
-	if len(result) != 5 {
-		t.Errorf("正向遍历所有数据失败，期望5条，实际%v条", len(result))
+	if len(result) != 49 {
+		t.Errorf("正向遍历所有数据失败，期望49条，实际%v条", len(result))
 	}
 
 	// 测试2: 正向遍历前3条数据
@@ -71,8 +68,8 @@ func TestTableDataFor(t *testing.T) {
 
 	// 测试4: 反向遍历所有数据
 	result = tableData.For(false)
-	if len(result) != 5 {
-		t.Errorf("反向遍历所有数据失败，期望5条，实际%v条", len(result))
+	if len(result) != 49 {
+		t.Errorf("反向遍历所有数据失败，期望49条，实际%v条", len(result))
 	}
 
 	// 测试5: 反向遍历前2条数据

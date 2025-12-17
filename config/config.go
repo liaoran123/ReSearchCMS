@@ -36,8 +36,10 @@ func init() {
 		// 所有尝试都失败，使用默认配置
 		os.Stderr.WriteString("警告：所有配置文件路径都无法加载，使用默认值\n")
 		Cfg = &Config{
-			System: SystemConfig{
-				Port:     9981,
+			Web: WebConfig{
+				Port: 9981,
+			},
+			Db: DbConfig{
 				DbPath:   "db",
 				Password: "",
 			},
@@ -51,13 +53,18 @@ func init() {
 
 // Config 配置结构体
 type Config struct {
-	System    SystemConfig    `yaml:"system"`
+	Web       WebConfig       `yaml:"web"`
+	Db        DbConfig        `yaml:"db"`
 	IterCache IterCacheConfig `yaml:"iter_cache"`
 }
 
-// SystemConfig 系统配置
-type SystemConfig struct {
-	Port     int    `yaml:"port"`
+// WebConfig Web配置
+type WebConfig struct {
+	Port int `yaml:"port"`
+}
+
+// DbConfig 数据库配置
+type DbConfig struct {
 	DbPath   string `yaml:"dbpath"`
 	Password string `yaml:"password"`
 }
