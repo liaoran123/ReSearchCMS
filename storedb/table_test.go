@@ -556,8 +556,8 @@ func TestTableSearch(t *testing.T) {
 		if item["id"] == nil {
 			continue
 		}
-		if currentID != ToInt64(item["id"]) {
-			t.Errorf("插入测试数据后，当前ID应为%v，实际: %d", ToInt64(item["id"]), currentID)
+		if currentID != AnyToInt(item["id"]) {
+			t.Errorf("插入测试数据后，当前ID应为%v，实际: %d", AnyToInt(item["id"]), currentID)
 		}
 	}
 	//测试遍历表所有kv

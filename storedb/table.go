@@ -87,7 +87,7 @@ func (t *Table) MaxAutoValue() int64 {
 	}
 	r := Bytes(rkey).ToAny(target)
 	// 使用 reflect 包进行类型转换，更灵活地处理各种数值类型
-	return ToInt64(r)
+	return AnyToInt64(r)
 
 }
 
@@ -347,18 +347,18 @@ func (t *Table) FieldsToBytes(fields *map[string]any) map[string][]byte {
 }
 
 // 插入记录
-func (t *Table) Insert(fields *map[string]any) (currentID int64, err error) {
+func (t *Table) Insert(fields *map[string]any) (currentID int, err error) {
 	if t.fields == nil {
 		return 0, fmt.Errorf("表 '%s' 未设置字段和类型", t.name)
 	}
 	// 检查是否提供了主键字段
 	_, ok := (*fields)[t.primary]
 	if !ok {
-		currentID = t.AutoValue()
+		currentID = AnyToInt(t.AutoValue())
 		(*fields)[t.primary] = currentID
 	} else {
 		// 使用ToInt64函数安全地将任何数值类型转换为int64
-		currentID = ToInt64((*fields)[t.primary])
+		currentID = AnyToInt((*fields)[t.primary])
 		// 将转换后的值放回fields中，确保类型一致
 		//(*fields)[t.primary] = currentID
 	}
