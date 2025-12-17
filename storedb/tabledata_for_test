@@ -42,7 +42,7 @@ func TestTableDataFor(t *testing.T) {
 	}
 
 	// 创建TableData实例
-	tableData := IterNew(iter)
+	tableData := IterNew(iter, table)
 	if tableData == nil {
 		t.Fatal("创建TableData实例失败")
 	}
@@ -104,7 +104,7 @@ func TestTableDataForEmpty(t *testing.T) {
 	}
 
 	// 创建TableData实例
-	tableData := IterNew(iter)
+	tableData := IterNew(iter, table)
 	if tableData == nil {
 		t.Fatal("创建TableData实例失败")
 	}

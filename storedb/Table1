@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"slices"
 	"strings"
+	"sync/atomic"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
@@ -29,11 +30,11 @@ type Table struct {
 	*/
 	fields map[string]any //string为字段名，any为字段值。
 	//下面的数组元素，对应于上面的fields的key字段名称
-	primary  string     //只支持单个主键。
-	counter  AutoInt    //自动增值计数器 使用atomic.Int64需要转换太麻烦，直接用自定义的AutoInt
-	index    [][]string //单索引，组合索引，全文索引等的各种组合索引
-	fullText []string   //全文索引字段名
-	ftlen    uint8      //全文索引分词长度，默认是5.限制是3--11.
+	primary  string       //只支持单个主键。
+	counter  atomic.Int64 //自动增值计数器
+	index    [][]string   //单索引，组合索引，全文索引等的各种组合索引
+	fullText []string     //全文索引字段名
+	ftlen    uint8        //全文索引分词长度，默认是5.限制是3--11.
 	rsdb     *rsdb
 }
 
@@ -63,11 +64,11 @@ func TableNew(name string) (*Table, error) {
 func (t *Table) InitAuto() {
 	maxValue := t.MaxAutoValue()
 	// MaxAutoValue现在直接返回int64类型
-	t.counter.Set(int(maxValue))
+	t.counter.Store(maxValue)
 }
 
 // 获取当前最大自动增值记录的主键值
-func (t *Table) MaxAutoValue() int {
+func (t *Table) MaxAutoValue() int64 {
 	key := []byte(t.GetPrimaryPrefix() + SPLIT)
 	iter := t.rsdb.GetIterator(key)
 	defer iter.Release()
@@ -86,7 +87,7 @@ func (t *Table) MaxAutoValue() int {
 	}
 	r := Bytes(rkey).ToAny(target)
 	// 使用 reflect 包进行类型转换，更灵活地处理各种数值类型
-	return AnyToInt(r)
+	return AnyToInt64(r)
 
 }
 
@@ -96,11 +97,11 @@ func (t *Table) SetFields(fields map[string]any) {
 }
 
 // 获取自动增值的值
-func (t *Table) AutoValue() int {
-	if t.counter.Get() == 0 {
-		t.counter.Set(t.MaxAutoValue())
+func (t *Table) AutoValue() int64 {
+	if t.counter.Load() == int64(0) {
+		t.counter.Store(t.MaxAutoValue())
 	}
-	return t.counter.Increment()
+	return t.counter.Add(1)
 }
 
 // 主键前缀
@@ -509,7 +510,7 @@ func (t *Table) For() iterator.Iterator {
 // 遍历表所有数据
 func (t *Table) ForData() *Iter {
 	pfx := t.GetPrimaryPrefix() + SPLIT
-	return IterNew(t.rsdb.GetIterator([]byte(pfx)), t)
+	return IterNew(t.rsdb.GetIterator([]byte(pfx)))
 }
 
 // 根据索引进行搜索返回迭代器
@@ -616,7 +617,7 @@ func (t *Table) Search(fields *map[string]any) *Iter {
 	if Iter == nil {
 		// 缓存不存在迭代器，创建新的迭代器
 		newiter := t.SearchForIndex(idx, idxType, fields)
-		Iter = IterNew(newiter, t)
+		Iter = IterNew(newiter)
 		if Iter != nil {
 			IterCaches.Store(key, Iter)
 		}

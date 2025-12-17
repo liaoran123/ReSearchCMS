@@ -1,7 +1,7 @@
 package storedb
 
 import (
-	"research/config"
+	"researchCms/config"
 	"sync"
 	"time"
 )

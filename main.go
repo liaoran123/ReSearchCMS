@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
-	"research/config"
+	"researchCms/config"
 )
 
 func main() {
