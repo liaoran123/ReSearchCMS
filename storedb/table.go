@@ -114,58 +114,11 @@ func (t *Table) MaxAutoValue() int64 {
 
 }
 
-/*
-// 设置字段值,以第一次设置的数据类型为准
-
-	func (t *Table) SetField(field string, value any) error {
-		// 字段名不能包含分隔符和标点符号
-		if strings.ContainsAny(field, SPLIT+"!\"#$%&'()*+,./:;<=>?@[\\]^`{|}~") {
-			return fmt.Errorf("字段名 '%s' 不能包含分隔符或标点符号", field)
-		}
-		if _, exists := t.fields[field]; !exists {
-			t.fields[field] = value
-		} else {
-			//主键值赋予nil值，是为了后续自动增值。故此为例外的不需要判断类型相同。
-			if field == t.primary && value == nil {
-				t.fields[field] = nil
-				return nil
-			}
-			// 已存在，判断类型是否相同
-			if fmt.Sprintf("%T", t.fields[field]) == fmt.Sprintf("%T", value) {
-				t.fields[field] = value
-			} else {
-				return fmt.Errorf("字段 '%s' 类型冲突，期望: %T, 实际: %T", field, t.fields[field], value)
-			}
-		}
-		return nil
-	}
-
-	func (t *Table) SetFields(fields map[string]any) error {
-		for field, value := range fields {
-			if err := t.SetField(field, value); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-*/
-
+// 必须先为表预设字段和类型
 func (t *Table) SetFields(fields map[string]any) {
 	t.fields = fields
 }
 
-/*
-// nil即表示使用自动增值，使用自动增值每次都需要将主键值设置为nil
-
-	func (t *Table) InitPrimary() {
-		if t.fields[t.primary] == nil {
-			if t.counter.Load() == int64(0) {
-				t.InitAuto()
-			}
-			t.fields[t.primary] = t.counter.Add(1)
-		}
-	}
-*/
 // 获取自动增值的值
 func (t *Table) AutoValue() int64 {
 	if t.counter.Load() == int64(0) {
@@ -174,24 +127,6 @@ func (t *Table) AutoValue() int64 {
 	return t.counter.Add(1)
 }
 
-/*
-// 将表所有字段转换为字节数组
-// 格式为: field1:value1-field2:value2,...
-func (t *Table) GetFieldsValue() []byte {
-	sr := ""
-	for field, value := range t.fields {
-		if value == nil {
-			continue
-		}
-		sr += field + ":" + AnyToStr(value) + SPLIT
-	}
-	// 移除最后一个分隔符
-	if len(sr) > 0 {
-		sr = sr[:len(sr)-len(SPLIT)]
-	}
-	return []byte(sr)
-}
-*/
 // 主键前缀
 func (t *Table) GetPrimaryPrefix() string {
 	return t.name + SPLIT + "pk" //+ SPLIT
@@ -303,13 +238,13 @@ func (t *Table) GetFullTextToken(nr string, ftlen int) (tokens []string) {
 }
 
 // 设置主键字段
-func (t *Table) SetPrimaryValue(primary string) error {
+func (t *Table) SetPrimary(primary string) error {
 	t.primary = primary
 	return nil
 }
 
 // 设置索引字段
-func (t *Table) SetIndexValue(index [][]string) error {
+func (t *Table) SetIndex(index [][]string) error {
 	t.index = index
 	return nil
 }
@@ -321,7 +256,7 @@ func (t *Table) AddIndex(index []string) error {
 }
 
 // 设置全文索引字段
-func (t *Table) SetFullTextValue(fullText []string) error {
+func (t *Table) SetFullText(fullText []string) error {
 	t.fullText = fullText
 	return nil
 }
@@ -440,6 +375,9 @@ func (t *Table) FieldsToBytes(fields *map[string]any) map[string][]byte {
 
 // 插入记录
 func (t *Table) Insert(fields *map[string]any) error {
+	if t.fields == nil {
+		return fmt.Errorf("表 '%s' 未设置字段和类型", t.name)
+	}
 	// 检查是否提供了主键字段
 	_, ok := (*fields)[t.primary]
 	if !ok {
@@ -466,6 +404,9 @@ func (t *Table) Insert(fields *map[string]any) error {
 
 // 删除记录
 func (t *Table) Delete(fields *map[string]any) error {
+	if t.fields == nil {
+		return fmt.Errorf("表 '%s' 未设置字段和类型", t.name)
+	}
 	// 检查是否提供了主键字段
 	_, ok := (*fields)[t.primary]
 	if !ok {
@@ -491,6 +432,9 @@ func (t *Table) Delete(fields *map[string]any) error {
 
 // 更新记录，由于项目基本没有更新操作，所以并不考虑性能和一致性。
 func (t *Table) Update(fields *map[string]any) error {
+	if t.fields == nil {
+		return fmt.Errorf("表 '%s' 未设置字段和类型", t.name)
+	}
 	// 检查是否提供了主键字段
 	primaryValue, ok := (*fields)[t.primary]
 	if !ok {
@@ -518,6 +462,9 @@ func (t *Table) Update(fields *map[string]any) error {
 
 // 从按主键数据库读取记录
 func (t *Table) Read(primary any) []byte {
+	if t.fields == nil {
+		return nil
+	}
 	pb := AnyToBytes(primary)
 	// 优化字符串拼接
 	var key bytes.Buffer
@@ -539,7 +486,7 @@ func (t *Table) Read(primary any) []byte {
 
 // 将记录转换为map
 func (t *Table) ParseValue(record []byte) map[string]any {
-	if record == nil {
+	if record == nil || t.fields == nil {
 		return nil
 	}
 	bs := Bytes(record).Split()
@@ -585,8 +532,8 @@ func (t *Table) ForData() *Iter {
 
 // 根据索引进行搜索返回迭代器
 // idxType 索引类型，0：主键索引，1：普通索引，2：全文索引
-func (t *Table) SearchForIndex(idx []string, idxType int) iterator.Iterator {
-	if len(idx) == 0 {
+func (t *Table) SearchForIndex(idx []string, idxType int, fields *map[string]any) iterator.Iterator {
+	if len(idx) == 0 || t.fields == nil {
 		return nil
 	}
 	pfx := ""
@@ -598,13 +545,12 @@ func (t *Table) SearchForIndex(idx []string, idxType int) iterator.Iterator {
 	case 2:
 		pfx = t.GetFullTextPrefix()
 	}
-	keys := []byte(pfx)
+	keys := []byte(pfx + SPLIT)
 	var val any
 	var bval []byte
 	var fval string
-	// 使用第一个值进行搜索
 	for _, v := range idx {
-		val = t.fields[v]
+		val = (*fields)[v]
 		if idxType != 2 {
 			bval = AnyToBytes(val)
 			keys = append(keys, bval...)
@@ -623,6 +569,9 @@ func (t *Table) SearchForIndex(idx []string, idxType int) iterator.Iterator {
 // 匹配对应的索引字段和索引类型
 // 需要完全匹配，不能部分匹配
 func (t *Table) MatchIndex(field ...string) ([]string, int) {
+	if t.fields == nil {
+		return nil, -1
+	}
 	flen := len(field)
 	//主键和全文索引都是单字段索引
 	if flen == 1 {
@@ -662,7 +611,14 @@ func (t *Table) MatchIndex(field ...string) ([]string, int) {
 
 // 根据字段名和值搜索返回数据迭代器
 // 缓存迭代器，避免每次for都重新创建迭代器
-func (t *Table) Search(field ...string) *Iter {
+func (t *Table) Search(fields *map[string]any) *Iter {
+	if t.fields == nil {
+		return nil
+	}
+	var field []string
+	for k := range *fields {
+		field = append(field, k)
+	}
 	idx, idxType := t.MatchIndex(field...)
 	if idx == nil {
 		return nil
@@ -671,13 +627,13 @@ func (t *Table) Search(field ...string) *Iter {
 	key := t.name + SPLIT
 	// 拼接索引字段和值
 	for _, v := range idx {
-		key += v + ":" + AnyToStr(t.fields[v]) + SPLIT
+		key += v + ":" + AnyToStr((*fields)[v]) + SPLIT
 	}
 	// 检查缓存是否存在迭代器
 	Iter, _ := IterCaches.Load(key)
 	if Iter == nil {
 		// 缓存不存在迭代器，创建新的迭代器
-		newiter := t.SearchForIndex(idx, idxType)
+		newiter := t.SearchForIndex(idx, idxType, fields)
 		Iter = IterNew(newiter)
 		if Iter != nil {
 			IterCaches.Store(key, Iter)

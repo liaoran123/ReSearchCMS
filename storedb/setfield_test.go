@@ -66,9 +66,9 @@ func TestSetFieldWithPrimary(t *testing.T) {
 	// 先设置id字段，然后再设置为主键
 	fields := table.GetAllFields()
 	fields["id"] = 1
-	err = table.SetPrimaryValue("id")
+	err = table.SetPrimary("id")
 	if err != nil {
-		t.Errorf("SetPrimaryValue 失败: %v", err)
+		t.Errorf("SetPrimary 失败: %v", err)
 	}
 
 	// 验证主键设置成功
@@ -76,5 +76,5 @@ func TestSetFieldWithPrimary(t *testing.T) {
 		t.Errorf("主键设置错误，期望: id, 实际: %s", table.primary)
 	}
 
-	fmt.Println("SetField 与 SetPrimaryValue 结合使用测试通过!")
+	fmt.Println("SetField 与 SetPrimary 结合使用测试通过!")
 }

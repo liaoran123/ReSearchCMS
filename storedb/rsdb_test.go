@@ -20,7 +20,7 @@ func TestGetIterator(t *testing.T) {
 	fields["city"] = "New York"
 
 	// 设置主键
-	table.SetPrimaryValue("id")
+	table.SetPrimary("id")
 
 	// 插入测试数据
 	if err := table.Insert(&fields); err != nil {
@@ -132,7 +132,7 @@ func TestGetIterator(t *testing.T) {
 	// 清理测试数据
 	for _, id := range []int{1, 2, 3} {
 		fields["id"] = id
-		table.SetPrimaryValue("id")
+		table.SetPrimary("id")
 		if err := table.Delete(&fields); err != nil {
 			t.Errorf("删除测试数据失败 (id=%d): %v", id, err)
 		}
@@ -153,7 +153,7 @@ func TestTableDataMethods(t *testing.T) {
 	fields["age"] = 30
 
 	// 设置主键
-	table.SetPrimaryValue("id")
+	table.SetPrimary("id")
 
 	// 插入测试数据
 	if err := table.Insert(&fields); err != nil {
@@ -201,7 +201,7 @@ func TestTableDataMethods(t *testing.T) {
 
 	// 清理测试数据
 	fields["id"] = 1
-	table.SetPrimaryValue("id")
+	table.SetPrimary("id")
 	if err := table.Delete(&fields); err != nil {
 		t.Errorf("删除测试数据失败: %v", err)
 	}

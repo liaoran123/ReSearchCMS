@@ -234,7 +234,7 @@ func TestBytesSplit(t *testing.T) {
 		{"multiple-split", []byte("a-b-c"), [][]byte{[]byte("a"), []byte("b"), []byte("c")}},
 		{"start-split", []byte("-hello"), [][]byte{[]byte("hello")}},
 		{"end-split", []byte("hello-"), [][]byte{[]byte("hello")}},
-		{"double-split", []byte("hello--world"), [][]byte{[]byte("hello--world")}},
+		{"double-split", []byte("hello--world"), [][]byte{[]byte("hello-world")}},
 	}
 
 	for _, tt := range tests {

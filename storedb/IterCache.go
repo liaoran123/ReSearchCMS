@@ -52,9 +52,7 @@ func (c *IterCache) Store(key string, iter *Iter) {
 		go c.CheckAllExpire()
 	}
 	c.iterMap.Store(key, iter)
-	if _, ok := c.hit[key]; ok {
-		c.hit[key] = time.Now()
-	}
+	c.hit[key] = time.Now()
 }
 
 // 加载数据迭代器

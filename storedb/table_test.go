@@ -3,7 +3,6 @@ package storedb
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"testing"
 )
@@ -50,7 +49,7 @@ func TestIndexFunctions(t *testing.T) {
 
 	// 测试设置索引字段
 	indexes := [][]string{{"name"}, {"age", "city"}}
-	table.SetIndexValue(indexes)
+	table.SetIndex(indexes)
 	if len(table.index) != 2 {
 		t.Errorf("设置索引数量错误，期望: 2, 实际: %d", len(table.index))
 	}
@@ -81,7 +80,7 @@ func TestFullTextFunctions(t *testing.T) {
 
 	// 测试设置全文索引字段
 	fields := []string{"content", "description"}
-	table.SetFullTextValue(fields)
+	table.SetFullText(fields)
 	if len(table.fullText) != 2 {
 		t.Errorf("设置全文索引字段数量错误，期望: 2, 实际: %d", len(table.fullText))
 	}
@@ -189,7 +188,7 @@ func TestAutoIncrement(t *testing.T) {
 	if table2 == nil {
 		t.Fatal("TableNew 失败")
 	}
-	table2.SetPrimaryValue("id")
+	table2.SetPrimary("id")
 	fields2 := table2.GetAllFields()
 	fields2["id"] = nil
 	table2.InitAuto()
@@ -221,8 +220,8 @@ func TestGetFullTextValue(t *testing.T) {
 	}
 
 	// 设置全文索引字段和主键
-	table.SetPrimaryValue("id")
-	table.SetFullTextValue([]string{"content"})
+	table.SetPrimary("id")
+	table.SetFullText([]string{"content"})
 	table.SetFullTextLen(2) // 设置较短的分词长度便于测试
 
 	// 设置字段值
@@ -261,7 +260,7 @@ func TestGetFullTextValue(t *testing.T) {
 	fmt.Printf("全文索引测试: 生成了 %d 个键\n", len(fullTextValues))
 }
 
-// compareStringSlices 比较两个字符串切片是否相等
+// TestGetIndexValue 测试索引值生成功能
 func TestGetIndexValue(t *testing.T) {
 	table, err := TableNew("test_get_index_value")
 	if err != nil {
@@ -273,7 +272,7 @@ func TestGetIndexValue(t *testing.T) {
 
 	// 设置索引字段
 	indexes := [][]string{{"name"}, {"age", "city"}}
-	table.SetIndexValue(indexes)
+	table.SetIndex(indexes)
 
 	// 设置字段值
 	fields := table.GetAllFields()
@@ -292,7 +291,7 @@ func TestGetIndexValue(t *testing.T) {
 
 	// 验证索引值格式
 	expectedIndex1 := []byte("test_get_index_value-idx-John Doe")
-	expectedIndex2 := bytes.Join([][]byte{[]byte("test_get_index_value-idx-"), IntToBytes(30, binary.BigEndian), []byte(SPLIT), []byte("New York")}, []byte(""))
+	expectedIndex2 := bytes.Join([][]byte{[]byte("test_get_index_value-idx"), fieldsBytes["age"], []byte("New York")}, []byte(SPLIT))
 
 	if !bytes.Equal(indexValues[0], expectedIndex1) && !bytes.Equal(indexValues[0], expectedIndex2) {
 		t.Errorf("索引值1错误，期望: %s 或 %s, 实际: %s", expectedIndex1, expectedIndex2, indexValues[0])
@@ -309,85 +308,6 @@ func TestGetIndexValue(t *testing.T) {
 	}
 }
 
-// TestTableInitAuto 测试InitAuto方法的功能
-func TestTableInitAuto(t *testing.T) {
-	// 测试场景1: 空表初始化
-	table1, err := TableNew("test_initauto_empty")
-	if err != nil {
-		t.Fatalf("TableNew 失败: %v", err)
-	}
-	if table1 == nil {
-		t.Fatal("TableNew 失败")
-	}
-	table1.SetPrimaryValue("id")
-
-	// 验证空表情况下InitAuto的行为
-	table1.InitAuto()
-	// 由于是空表，MaxAutoValue应该返回1，所以计数器应该是1
-	if table1.counter.Load() != 1 {
-		t.Errorf("空表初始化失败，期望计数器值: 1, 实际: %d", table1.counter.Load())
-	}
-
-	// 测试场景2: 已有数据的表初始化
-	table2, err := TableNew("test_inauto_with_data")
-	if err != nil {
-		t.Fatalf("TableNew 失败: %v", err)
-	}
-	if table2 == nil {
-		t.Fatal("TableNew 失败")
-	}
-	table2.SetPrimaryValue("id")
-
-	// 插入一些测试数据
-	for i := 1; i <= 5; i++ {
-		fields := table2.GetAllFields()
-		fields["id"] = i
-		fields["name"] = fmt.Sprintf("User %d", i)
-		if err = table2.Insert(&fields); err != nil {
-			t.Fatalf("插入测试数据失败: %v", err)
-		}
-	}
-
-	// 创建一个新的表实例，用于测试InitAuto方法
-	table2New, err := TableNew("test_inauto_with_data")
-	if err != nil {
-		t.Fatalf("TableNew 失败: %v", err)
-	}
-	if table2New == nil {
-		t.Fatal("TableNew 失败")
-	}
-	table2New.SetPrimaryValue("id")
-
-	// 调用InitAuto方法
-	table2New.InitAuto()
-
-	// 验证计数器是否正确设置为最大的主键值
-	if table2New.counter.Load() != 5 {
-		t.Errorf("已有数据的表初始化失败，期望计数器值: 5, 实际: %d", table2New.counter.Load())
-	}
-
-	// 测试场景3: 已有数据且设置了主键的情况
-	table3, err := TableNew("test_inauto_with_primary_set")
-	if err != nil {
-		t.Fatalf("TableNew 失败: %v", err)
-	}
-	if table3 == nil {
-		t.Fatal("TableNew 失败")
-	}
-	table3.SetPrimaryValue("id")
-	fields := table3.GetAllFields()
-	fields["id"] = 10
-	fields["name"] = "User with set id"
-
-	// 调用InitAuto方法
-	table3.InitAuto()
-
-	// 由于主键已经设置，计数器应该保持不变（默认是0）
-	if table3.counter.Load() != 0 {
-		t.Errorf("已设置主键的表初始化失败，期望计数器值保持0, 实际: %d", table3.counter.Load())
-	}
-}
-
 // TestTableRead 测试Read方法的功能
 func TestTableRead(t *testing.T) {
 	// 创建测试表
@@ -398,14 +318,16 @@ func TestTableRead(t *testing.T) {
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
-	fields := table.GetAllFields()
+	// 预设表字段和数据类型
+	fields := map[string]any{}
 	fields["id"] = 1
 	fields["name"] = "John Doe"
 	fields["age"] = 30
 	fields["city"] = "New York"
+	table.SetFields(fields)
 
 	// 设置主键
-	table.SetPrimaryValue("id")
+	table.SetPrimary("id")
 
 	// 插入测试数据
 	err = table.Insert(&fields)
@@ -468,7 +390,7 @@ func TestTableRead(t *testing.T) {
 	fields["city"] = "Los Angeles"
 
 	// 设置字符串主键
-	table2.SetPrimaryValue("user_id")
+	table2.SetPrimary("user_id")
 
 	// 插入测试数据
 	err = table2.Insert(&fields)
@@ -499,13 +421,17 @@ func TestCRUDOperations(t *testing.T) {
 	}
 
 	// 设置主键
-	table.SetPrimaryValue("id")
+	table.SetPrimary("id")
+	//// 必须先为表预设字段和类型
+	// 必须先为表预设字段和数据类型
+	fields := map[string]any{"id": 0, "name": "", "age": uint8(0), "description": ""}
+	table.SetFields(fields)
 
 	// 测试插入操作
-	fields := table.GetAllFields()
+	fields = table.GetAllFields()
 	fields["id"] = 1
 	fields["name"] = "John Doe"
-	fields["age"] = 30
+	fields["age"] = uint8(30)
 	fields["city"] = "New York"
 	err = table.Insert(&fields)
 	if err != nil {
@@ -523,14 +449,14 @@ func TestCRUDOperations(t *testing.T) {
 		t.Errorf("插入的姓名错误，期望: John Doe, 实际: %v", insertedFields["name"])
 	}
 
-	if insertedFields["age"] != 30 {
+	if insertedFields["age"] != uint8(30) {
 		t.Errorf("插入的年龄错误，期望: 30, 实际: %v", insertedFields["age"])
 	}
 
 	// 测试更新操作
 	updateFields := map[string]any{
 		"id":   1,
-		"age":  31,
+		"age":  uint8(31),
 		"city": "Los Angeles",
 	}
 
@@ -546,7 +472,7 @@ func TestCRUDOperations(t *testing.T) {
 		t.Fatal("更新失败，无法读取记录")
 	}
 
-	if updatedFields["age"] != 31 {
+	if updatedFields["age"] != uint8(31) {
 		t.Errorf("更新的年龄错误，期望: 31, 实际: %v", updatedFields["age"])
 	}
 
@@ -555,8 +481,10 @@ func TestCRUDOperations(t *testing.T) {
 	}
 
 	// 测试删除操作
-	fields["id"] = 1
-	deleteFields := table.GetAllFields()
+
+	deleteFields := map[string]any{
+		"id": 1,
+	}
 
 	err = table.Delete(&deleteFields)
 	if err != nil {
@@ -583,7 +511,7 @@ func compareStringSlices(a, b []string) bool {
 	return true
 }
 
-// TestTableSearch 测试Search方法的功能
+// TestTableSearch 测试表遍历数据和Search方法的功能
 func TestTableSearch(t *testing.T) {
 	// 创建测试表
 	table, err := TableNew("test_search")
@@ -593,21 +521,24 @@ func TestTableSearch(t *testing.T) {
 	if table == nil {
 		t.Fatal("TableNew 失败")
 	}
-	table.SetPrimaryValue("id")
+	// 必须先为表预设字段和数据类型
+	fields := map[string]any{"id": 0, "name": "", "age": uint8(0), "description": ""}
+	table.SetFields(fields)
+
+	table.SetPrimary("id")
 	table.AddIndex([]string{"name"})
 	table.AddFullTextField("description")
 
 	// 插入测试数据
 	data := []map[string]any{
-		{"id": 1, "name": "Alice", "age": 25, "description": "Alice is a software engineer"},
+		{"id": 1, "name": "六月", "age": 25, "description": "古木阴阴六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
 		{"id": 2, "name": "Bob", "age": 30, "description": "Bob is a product manager"},
-		{"id": 11, "name": "David", "age": 40, "description": "David is a developer"},
-		{"id": 21, "name": "Eve", "age": 45, "description": "Eve is a manager"},
 		{"id": 3, "name": "Charlie", "age": 35, "description": "Charlie is a designer"},
 		{"id": 4, "name": "David", "age": 40, "description": "David is a developer"},
 		{"id": 5, "name": "Eve", "age": 45, "description": "Eve is a manager"},
-		{"id": nil, "name": "Eve nil", "age": 45, "description": "Eve is a manager nil"},
-		{"id": nil, "name": "Eve nil1", "age": 45, "description": "Eve is a manager nil1"},
+		{"id": 6, "name": "Alice", "age": 27, "description": "Alice is a software engineer"},
+		{"id": nil, "name": "Eve 49", "age": 49, "description": "Eve is a manager 49"}, //"id": nil 使用自动增值
+		{"id": nil, "name": "Eve 55", "age": 55, "description": "Eve is a manager 55"}, //"id": nil 使用自动增值
 	}
 	table.SetFields(data[0])
 	for _, item := range data {
@@ -625,9 +556,9 @@ func TestTableSearch(t *testing.T) {
 		dataIter := table.For()
 		for dataIter.Next() {
 			//fmt.Printf("dataIter.Key(): %v\n", dataIter.Key())
-			//fmt.Printf("key: %s, value: %s\n", dataIter.Key(), dataIter.Value())
-			val := table.ParseValue(dataIter.Value())
-			fmt.Printf("val: %v\n", val)
+			fmt.Printf("key: %s, value: %s\n", dataIter.Key(), dataIter.Value())
+			//val := table.ParseValue(dataIter.Value())
+			//fmt.Printf("val: %v\n", val)
 		}
 		dataIter.Release()
 	})
@@ -656,48 +587,174 @@ func TestTableSearch(t *testing.T) {
 	// 测试1: 主键搜索
 	t.Run("PrimaryKeySearch", func(t *testing.T) {
 		// 使用Search方法搜索主键为3的记录
-		fields := table.GetAllFields()
-		fields["id"] = 3
-		dataIter := table.Search("id")
-		if dataIter != nil {
-			// 验证返回的数据是否正确
-			dataIter.Release()
+		fields := map[string]any{
+			"id": 1,
 		}
+		dataIter := table.Search(&fields)
+		if dataIter == nil {
+			t.Fatalf("Search 失败: %v", err)
+		}
+		defer dataIter.Release()
+		_, v := dataIter.First()
+		records := table.ParseValue(v)
+		fmt.Printf("records: %v\n", records)
+		//判断data[0]和records是否相等
+		if records["id"] != data[0]["id"] {
+			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["id"], records["id"])
+		}
+		if records["name"] != data[0]["name"] {
+			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["name"], records["name"])
+		}
+		if records["age"] != data[0]["age"] {
+			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["age"], records["age"])
+		}
+		if records["description"] != data[0]["description"] {
+			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["description"], records["description"])
+		}
+
 	})
 
 	// 测试2: 索引字段搜索
 	t.Run("IndexSearch", func(t *testing.T) {
 		// 使用Search方法搜索name为"Charlie"的记录
-		fields := table.GetAllFields()
-		fields["name"] = "Charlie"
-		dataIter := table.Search("name")
-		if dataIter != nil {
-			// 验证返回的数据是否正确
-			dataIter.Release()
+		fields := map[string]any{
+			"name": "Charlie",
+		}
+		dataIter := table.Search(&fields)
+		if dataIter == nil {
+			t.Fatalf("Search 失败: %v", err)
+		}
+		defer dataIter.Release()
+		_, v := dataIter.First()
+
+		rid := Bytes(v).ToAny(data[4]["id"])
+		fmt.Printf("rid: %v\n", rid)
+		//判断data[2]和records是否相等
+		if rid != data[2]["id"] {
+			t.Errorf("搜索name为Charlie的记录错误，期望: %v, 实际: %v", data[2]["id"], rid)
 		}
 	})
 
 	// 测试3: 全文索引搜索
 	t.Run("FullTextSearch", func(t *testing.T) {
 		// 使用Search方法搜索description包含"Bob"的记录
-		fields := table.GetAllFields()
-		fields["description"] = "Bob"
-		dataIter := table.Search("description")
-		if dataIter != nil {
-			// 验证返回的数据是否正确
-			dataIter.Release()
+		fields := map[string]any{
+			"description": "Bob",
+		}
+		dataIter := table.Search(&fields)
+		if dataIter == nil {
+			t.Fatalf("Search 失败: %v", err)
+		}
+		defer dataIter.Release()
+		_, v := dataIter.First()
+		rid := Bytes(v).ToAny(data[1]["id"])
+		fmt.Printf("rid: %v\n", rid)
+		//判断data[1]和records是否相等
+		if rid != data[1]["id"] {
+			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], rid)
+		}
+		sdata := []map[string]any{
+			{"description": "古木阴阴六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+			{"description": "六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+			{"description": "幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+			{"description": "藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+			{"description": "——裘万顷《次余仲庸松风阁韵十九首其三》"},
+			{"description": "次余仲庸松风阁韵十九首其三》"},
+			{"description": "十九首其三》"},
+			{"description": "。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+		}
+		for _, item := range sdata {
+			fields := map[string]any{
+				"description": item["description"],
+			}
+			dataIter := table.Search(&fields)
+			if dataIter == nil {
+				t.Fatalf("Search 失败: %v", err)
+			}
+			defer dataIter.Release()
+			_, v := dataIter.First()
+			rid := Bytes(v).ToAny(data[0]["id"])
+			fmt.Printf("全文索引搜索 rid: %v\n", rid)
+			//判断data[1]和records是否相等
+		}
+
+		sdata1 := []map[string]any{
+			{"description": "Bob is a product manager"},
+			{"description": "is a product manager"},
+			{"description": "a product manager"},
+			{"description": "product manager"},
+			{"description": "manager"},
+			{"description": "is"},
+			{"description": " a product manager"},
+			{"description": " manager"},
+		}
+		for _, item := range sdata1 {
+			fields := map[string]any{
+				"description": item["description"],
+			}
+			dataIter := table.Search(&fields)
+			if dataIter == nil {
+				t.Fatalf("Search 失败: %v", err)
+			}
+			defer dataIter.Release()
+			_, v := dataIter.First()
+			rid := Bytes(v).ToAny(data[1]["id"])
+			fmt.Printf("全文索引搜索 rid: %v\n", rid)
+			//判断data[1]和records是否相等
 		}
 	})
 
 	// 测试4: 搜索不存在的数据
 	t.Run("SearchNonExistent", func(t *testing.T) {
-		fields := table.GetAllFields()
-		fields["id"] = 100
+		fields := map[string]any{
+			"id": 100,
+		}
 		// 使用Search方法搜索不存在的id
-		dataIter := table.Search("id")
-		if dataIter != nil {
-			// 验证返回的数据是否正确
-			dataIter.Release()
+		dataIter := table.Search(&fields)
+		if dataIter == nil {
+			t.Fatalf("Search 失败: %v", err)
+		}
+		defer dataIter.Release()
+		_, v := dataIter.First()
+		rid := Bytes(v).ToAny(data[1]["id"])
+		fmt.Printf("rid: %v\n", rid)
+		//判断data[1]和records是否相等
+		if rid == data[1]["id"] {
+			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], rid)
+		}
+	})
+	// TestSearchCache 测试Search函数的缓存机制
+	t.Run("SearchCache", func(t *testing.T) {
+		// 第一次搜索，缓存结果
+		fields := map[string]any{
+			"id": 3,
+		}
+		dataIter := table.Search(&fields)
+		if dataIter == nil {
+			t.Fatalf("Search 失败: %v", err)
+		}
+		defer dataIter.Release()
+		_, v := dataIter.First()
+		rcd := table.ParseValue(v)
+		fmt.Printf("rcd: %v\n", rcd)
+		//判断data[4]和records是否相等
+		if rcd["id"] != data[2]["id"] {
+			t.Errorf("搜索id为3的记录错误，期望: %v, 实际: %v", data[2]["id"], rcd["id"])
+		}
+
+		// 第二次搜索，从缓存中获取结果
+		//fields["id"] = 3
+		dataIter = table.Search(&fields)
+		if dataIter == nil {
+			t.Fatalf("Search 失败: %v", err)
+		}
+		defer dataIter.Release()
+		_, v = dataIter.First()
+		rcd = table.ParseValue(v)
+		fmt.Printf("rcd: %v\n", rcd)
+		//判断data[4]和records是否相等
+		if rcd["id"] != data[2]["id"] {
+			t.Errorf("搜索id为3的记录错误，期望: %v, 实际: %v", data[2]["id"], rcd["id"])
 		}
 	})
 }

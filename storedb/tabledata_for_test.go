@@ -14,17 +14,22 @@ func TestTableDataFor(t *testing.T) {
 
 	// 设置主键
 	table.primary = "id"
+	//预设表字段和类型
+	table.fields["id"] = 0
+	table.fields["name"] = "0"
+	table.fields["age"] = uint8(0)
+	table.fields["city"] = ""
 
 	// 插入多条测试数据
 	for i := 1; i <= 5; i++ {
 		fields := table.GetAllFields()
 		fields["id"] = i
 		fields["name"] = "User" + string(rune('0'+i))
-		fields["age"] = 20 + i
+		fields["age"] = uint8(20 + i)
 		fields["city"] = "City" + string(rune('A'+i-1))
 
 		// 设置主键值
-		table.SetPrimaryValue("id")
+		table.SetPrimary("id")
 
 		// 插入数据
 		if err := table.Insert(&fields); err != nil {
