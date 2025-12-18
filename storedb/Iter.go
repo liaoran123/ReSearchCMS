@@ -11,11 +11,11 @@ type Iter struct {
 	top  map[bool]func() bool
 }
 
-func IterNew(iter iterator.Iterator) *Iter {
+func IterNew(iter iterator.Iterator) Iter {
 	if iter == nil {
-		return nil
+		return Iter{}
 	}
-	return &Iter{
+	return Iter{
 		iter: iter,
 		move: map[bool]func() bool{
 			true:  iter.Next,

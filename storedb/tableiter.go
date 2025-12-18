@@ -1,0 +1,162 @@
+package storedb
+
+import "sync"
+
+type TableIter interface {
+	//实现sql语句中的select f0,f1,... from table 要返回的字段
+	//如果keys为空，则返回所有字段
+	// 在最底层转换，最大化减少内存占用
+	GetRecord(esc bool, limit ...int) Records
+}
+
+// 基础迭代器结构体，提取公共字段和方法
+type baseIter struct {
+	table   *Table
+	keys    []string
+	records Records
+	mu      sync.Mutex
+}
+
+// 直接使用游标迭代器提取主键的数据集，减少内存占用
+type PrimaryDataIter struct {
+	baseIter
+	iter Iter
+}
+
+func PrimaryDataIterNew(table *Table, iter Iter, keys ...string) *PrimaryDataIter {
+	return &PrimaryDataIter{
+		baseIter: baseIter{
+			table:   table,
+			keys:    keys,
+			records: make(Records, 0),
+		},
+		iter: iter,
+	}
+}
+
+// 设置要返回的字段
+func (p *PrimaryDataIter) SetKeys(keys ...string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.keys = keys
+}
+
+// 从迭代器中提取主键的数据集
+func (p *PrimaryDataIter) GetRecord(esc bool, limit ...int) (r Records) {
+	//添加锁，防止并发访问
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// 重置records，根据limit预分配容量
+	var count int
+	switch len(limit) {
+	case 0:
+		count = 0
+	case 1:
+		count = limit[0]
+	default:
+		count = limit[1]
+	}
+
+	// 预分配容量，避免频繁扩容
+	if count > 0 {
+		p.records = make(Records, 0, count)
+	} else {
+		p.records = make(Records, 0)
+	}
+
+	// 使用ForFn遍历数据
+	p.iter.ForFn(p.getkv, esc, limit...)
+
+	// 返回结果并重置records
+	r = p.records
+	p.records = make(Records, 0)
+	return r
+}
+
+// 在最底层转换，最大化减少内存占用
+func (p *PrimaryDataIter) getkv(key []byte, value []byte) {
+	record := Record(p.table.ParseValue(value)).GetKeys(p.keys...)
+	p.records = append(p.records, record)
+}
+
+type IndexDataIter struct {
+	baseIter
+	iter Iter
+}
+
+func IndexDataIterNew(table *Table, iter Iter, keys ...string) *IndexDataIter {
+	return &IndexDataIter{
+		baseIter: baseIter{
+			table:   table,
+			keys:    keys,
+			records: make(Records, 0),
+		},
+		iter: iter,
+	}
+}
+
+// 设置要返回的字段
+func (i *IndexDataIter) SetKeys(keys ...string) {
+	i.mu.Lock()
+	defer i.mu.Unlock()
+	i.keys = keys
+}
+
+// 从迭代器中提取索引的数据集
+func (i *IndexDataIter) GetRecord(esc bool, limit ...int) (r Records) {
+	//添加锁，防止并发访问
+	i.mu.Lock()
+	defer i.mu.Unlock()
+
+	// 重置records，根据limit预分配容量
+	var count int
+	switch len(limit) {
+	case 0:
+		count = 0
+	case 1:
+		count = limit[0]
+	default:
+		count = limit[1]
+	}
+
+	// 预分配容量，避免频繁扩容
+	if count > 0 {
+		i.records = make(Records, 0, count)
+	} else {
+		i.records = make(Records, 0)
+	}
+
+	// 使用ForFn遍历数据
+	i.iter.ForFn(i.getkv, esc, limit...)
+
+	// 返回结果并重置records
+	r = i.records
+	i.records = make(Records, 0)
+	return r
+}
+
+// 在最底层转换，最大化减少内存占用
+func (i *IndexDataIter) getkv(key []byte, value []byte) {
+	// 确保主键字段存在
+	pytype, exists := i.table.fields[i.table.primary]
+	if !exists {
+		return
+	}
+
+	// 转换主键值
+	id := Bytes(value).ToAny(pytype)
+	if id == nil {
+		return
+	}
+
+	// 读取完整记录
+	byrecord := i.table.Read(id)
+	if byrecord == nil {
+		return
+	}
+
+	// 解析记录并提取指定字段
+	record := Record(i.table.ParseValue(byrecord)).GetKeys(i.keys...)
+	i.records = append(i.records, record)
+}

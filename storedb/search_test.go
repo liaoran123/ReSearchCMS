@@ -39,7 +39,7 @@ func TestSearch(t *testing.T) {
 		"id": 1,
 	}
 	td := table.Search(&fields)
-	if td != nil {
+	if td.iter != nil {
 		td.Release() // 释放资源
 	}
 
@@ -48,7 +48,7 @@ func TestSearch(t *testing.T) {
 		"name": "test",
 	}
 	t1 := table.Search(&fields)
-	if t1 != nil {
+	if t1.iter != nil {
 		t1.Release() // 释放资源
 	}
 
@@ -58,7 +58,7 @@ func TestSearch(t *testing.T) {
 		"city": "New York",
 	}
 	t2 := table.Search(&fields)
-	if t2 != nil {
+	if t2.iter != nil {
 		t2.Release() // 释放资源
 	}
 }
@@ -98,13 +98,13 @@ func TestSearchCache(t *testing.T) {
 		"id": 1,
 	}
 	td1 := table.Search(&fields)
-	if td1 == nil {
+	if td1.iter == nil {
 		t.Fatal("第一次调用Search返回nil")
 	}
 
 	// 第二次调用Search，应该从缓存中获取TableData对象
 	td2 := table.Search(&fields)
-	if td2 == nil {
+	if td2.iter == nil {
 		t.Fatal("第二次调用Search返回nil")
 	}
 	rs := td2.For(true)
@@ -146,7 +146,7 @@ func TestSearchNoIndex(t *testing.T) {
 		"name": "test",
 	}
 	td := table.Search(&fields)
-	if td != nil {
+	if td.iter != nil {
 		t.Errorf("Search函数在没有匹配索引时应该返回nil，实际返回了%v", td)
 	}
 }

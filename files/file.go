@@ -98,7 +98,7 @@ func getPPTXTextContent(filePath string) (string, error) {
 
 	// 遍历所有幻灯片
 	for i, slide := range prs.Slides() {
-		buf.WriteString(fmt.Sprintf("幻灯片 %d:\n", i+1))
+		fmt.Fprintf(&buf, "幻灯片 %d:\n", i+1)
 
 		// 使用ExtractText方法提取幻灯片中的所有文本
 		slideText := slide.ExtractText()
@@ -138,7 +138,6 @@ func GetHTMLTextContent(filePath string) (string, error) {
 func ReadFileContent(filePath string) (string, error) {
 	// 获取文件扩展名
 	ext := filepath.Ext(filePath)
-
 	// 检查是否为Office文件
 	if ext == ".docx" || ext == ".xlsx" || ext == ".pptx" {
 		return GetOfficeTextContent(filePath)
@@ -150,10 +149,13 @@ func ReadFileContent(filePath string) (string, error) {
 	}
 
 	// 读取普通文本文件
-	content, err := os.ReadFile(filePath)
-	if err != nil {
-		return "", err
+	if ext == ".txt" {
+		content, err := os.ReadFile(filePath)
+		if err != nil {
+			return "", err
+		}
+		return string(content), nil
 	}
 
-	return string(content), nil
+	return "", fmt.Errorf("不支持的文件类型: %s", ext)
 }

@@ -46,7 +46,7 @@ func IterCacheNew(max int, timeout time.Duration) *IterCache {
 }
 
 // 存储数据迭代器
-func (c *IterCache) Store(key string, iter *Iter) {
+func (c *IterCache) Store(key string, iter Iter) {
 	// 当缓存中的数据迭代器数量超过最大容量的90%时，触发过期检查
 	if len(c.hit) > c.max/10*9 {
 		go c.CheckAllExpire()
@@ -55,14 +55,14 @@ func (c *IterCache) Store(key string, iter *Iter) {
 	c.hit[key] = time.Now()
 }
 
-// 加载数据迭代器
-func (c *IterCache) Load(key string) (*Iter, bool) {
+// 加载数据迭代器,由于是提供多线程访问，不能返回指针，而是复制一份。
+func (c *IterCache) Load(key string) (Iter, bool) {
 	iter, ok := c.iterMap.Load(key)
 	if ok {
 		c.hit[key] = time.Now()
-		return iter.(*Iter), ok
+		return iter.(Iter), ok
 	}
-	return nil, ok
+	return Iter{}, false
 }
 
 // 检查数据迭代器是否过期，过期则删除
@@ -70,7 +70,7 @@ func (c *IterCache) CheckExpire(key string) bool {
 	if hit, ok := c.hit[key]; ok {
 		if time.Since(hit) > c.timeout {
 			if val, ok := c.iterMap.Load(key); ok {
-				if iter, ok := val.(*Iter); ok {
+				if iter, ok := val.(Iter); ok {
 					iter.Release() // 删除前先释放数据迭代器
 				}
 			}

@@ -509,7 +509,7 @@ func (t *Table) For() iterator.Iterator {
 }
 
 // 遍历表所有数据
-func (t *Table) ForData() Iter {
+func (t *Table) ForData() *Iter {
 	pfx := t.GetPrimaryPrefix() + SPLIT
 	return IterNew(t.rsdb.GetIterator([]byte(pfx)))
 }
@@ -528,6 +528,8 @@ func (t *Table) SearchForIndex(idx []string, idxType int, fields *map[string]any
 		pfx = t.GetIndexPrefix()
 	case 2:
 		pfx = t.GetFullTextPrefix()
+	default:
+		pfx = t.name + SPLIT //默认打开表全部
 	}
 	keys := []byte(pfx + SPLIT)
 	var val any
@@ -595,9 +597,9 @@ func (t *Table) MatchIndex(field ...string) ([]string, int) {
 
 // 根据字段名和值搜索返回数据迭代器
 // 缓存迭代器，避免每次for都重新创建迭代器
-func (t *Table) Search(fields *map[string]any) Iter {
+func (t *Table) Search(fields *map[string]any) *Iter {
 	if t.fields == nil {
-		return Iter{}
+		return nil
 	}
 	var field []string
 	for k := range *fields {
@@ -605,7 +607,7 @@ func (t *Table) Search(fields *map[string]any) Iter {
 	}
 	idx, idxType := t.MatchIndex(field...)
 	if idx == nil {
-		return Iter{}
+		return nil
 	}
 	// 构建缓存键
 	key := t.name + SPLIT
@@ -614,12 +616,12 @@ func (t *Table) Search(fields *map[string]any) Iter {
 		key += v + ":" + AnyToStr((*fields)[v]) + SPLIT
 	}
 	// 检查缓存是否存在迭代器
-	Iter, exists := IterCaches.Load(key)
-	if !exists {
+	Iter, _ := IterCaches.Load(key)
+	if Iter == nil {
 		// 缓存不存在迭代器，创建新的迭代器
 		newiter := t.SearchForIndex(idx, idxType, fields)
 		Iter = IterNew(newiter)
-		if Iter.iter != nil {
+		if Iter != nil {
 			IterCaches.Store(key, Iter)
 		}
 	}
