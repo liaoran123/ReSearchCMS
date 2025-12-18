@@ -59,6 +59,14 @@ func TableNew(name string) (*Table, error) {
 	}, nil
 }
 
+// 获取自动增值的值
+func (t *Table) GetAutoInc() int {
+	if t.counter.Get() == 0 {
+		t.InitAuto()
+	}
+	return int(t.counter.Increment())
+}
+
 // 初始化自动增值的值
 func (t *Table) InitAuto() {
 	maxValue := t.MaxAutoValue()
@@ -296,6 +304,9 @@ func (t *Table) RecordKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, p
 func (t *Table) IndexKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool) {
 	idxs := t.GetIndexsPrefix(fieldsBytes)
 	value := (*fieldsBytes)[t.primary]
+	if len(value) == 0 {
+		fmt.Printf("主键 '%s' 的值为空，无法创建索引\n", t.primary)
+	}
 	for _, idx := range idxs {
 		if put {
 			batch.Put(idx, value)
@@ -308,9 +319,13 @@ func (t *Table) IndexKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, pu
 // put全文索引KV
 func (t *Table) FullTextKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool) {
 	idxs := t.GetFullTextValue(fieldsBytes)
+	value := (*fieldsBytes)[t.primary]
+	if len(value) == 0 {
+		fmt.Printf("主键 '%s' 的值为空，无法创建索引\n", t.primary)
+	}
 	for _, idx := range idxs {
 		if put {
-			batch.Put(idx, (*fieldsBytes)[t.primary])
+			batch.Put(idx, value)
 		} else {
 			batch.Delete(idx)
 		}
@@ -352,14 +367,16 @@ func (t *Table) Insert(fields *map[string]any) (currentID int, err error) {
 	}
 	// 检查是否提供了主键字段
 	_, ok := (*fields)[t.primary]
-	if !ok {
-		currentID = AnyToInt(t.AutoValue())
+	if !ok { //未提供主键字段，自动生成主键值
+		currentID = t.GetAutoInc()
 		(*fields)[t.primary] = currentID
-	} else {
-		// 使用ToInt64函数安全地将任何数值类型转换为int64
-		currentID = AnyToInt((*fields)[t.primary])
-		// 将转换后的值放回fields中，确保类型一致
-		//(*fields)[t.primary] = currentID
+	} else { //提供了主键字段，但是值为nil，自动生成主键值
+		if (*fields)[t.primary] == nil {
+			currentID = t.GetAutoInc()
+			(*fields)[t.primary] = currentID
+		} else { //提供了主键字段，且值不为nil，转换为int类型
+			currentID = AnyToInt((*fields)[t.primary])
+		}
 	}
 	// 检查字段类型是否匹配
 	if err = t.CheckType(fields); err != nil {
@@ -509,7 +526,7 @@ func (t *Table) For() iterator.Iterator {
 // 遍历表所有数据
 func (t *Table) ForData() *Iter {
 	pfx := t.GetPrimaryPrefix() + SPLIT
-	return IterNew(t.rsdb.GetIterator([]byte(pfx)), t)
+	return IterNew(t.rsdb.GetIterator([]byte(pfx)))
 }
 
 // 根据索引进行搜索返回迭代器
@@ -616,7 +633,7 @@ func (t *Table) Search(fields *map[string]any) *Iter {
 	if Iter == nil {
 		// 缓存不存在迭代器，创建新的迭代器
 		newiter := t.SearchForIndex(idx, idxType, fields)
-		Iter = IterNew(newiter, t)
+		Iter = IterNew(newiter)
 		if Iter != nil {
 			IterCaches.Store(key, Iter)
 		}
