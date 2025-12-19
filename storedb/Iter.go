@@ -6,9 +6,10 @@ import (
 
 // 返回表数据或索引数据
 type Iter struct {
-	iter iterator.Iterator
-	move map[bool]func() bool
-	top  map[bool]func() bool
+	iter      iterator.Iterator
+	move      map[bool]func() bool
+	top       map[bool]func() bool
+	IsRelease bool //是否释放迭代器
 }
 
 func IterNew(iter iterator.Iterator) Iter {
@@ -25,7 +26,17 @@ func IterNew(iter iterator.Iterator) Iter {
 			true:  iter.First,
 			false: iter.Last,
 		},
+		IsRelease: true, //默认遍历后释放迭代器，出于需要重用和并发安全的双重考虑
 	}
+}
+func (t *Iter) GetIter() iterator.Iterator {
+	return t.iter
+}
+func (t *Iter) SetIter(iter iterator.Iterator) {
+	t.iter = iter
+}
+func (t *Iter) SetIsRelease(isRelease bool) {
+	t.IsRelease = isRelease
 }
 
 /*
@@ -38,6 +49,9 @@ func (t *Iter) Setiter(iter iterator.Iterator) {
 // limit为遍历的范围，0表示从当前位置开始遍历，1表示从当前位置开始遍历，count个元素
 // 2个参数表示从start位置开始遍历，count个元素
 func (t *Iter) For(esc bool, limit ...int) (ret [][]byte) {
+	if t.IsRelease {
+		defer t.iter.Release()
+	}
 	if !t.top[esc]() {
 		return nil
 	}
@@ -94,6 +108,11 @@ func (t *Iter) For(esc bool, limit ...int) (ret [][]byte) {
 // 2个参数表示从start位置开始遍历，count个元素
 // fn为遍历每个元素时调用数据的函数
 func (t *Iter) ForFn(fn func(k, v []byte), esc bool, limit ...int) {
+	//设计主要是面向web的短连接，迭代器不能并发使用，所以每次遍历完后都释放迭代器
+	// 如果需要复用，可以GetIter()保存迭代器，释放后重新SetIter()
+	if t.IsRelease {
+		defer t.iter.Release()
+	}
 	if !t.top[esc]() {
 		return
 	}
@@ -128,29 +147,59 @@ func (t *Iter) ForFn(fn func(k, v []byte), esc bool, limit ...int) {
 			break
 		}
 	}
-	// 释放迭代器
-	//t.iter.Release()
 }
 
-func (t *Iter) First() (key []byte, value []byte) {
+// 判断是否存在
+// Release是否释放迭代器,出于需要重用和并发安全考虑
+func (t *Iter) Exist(Release ...bool) bool {
+	if len(Release) > 0 && Release[0] {
+		defer t.iter.Release()
+	}
+	return t.iter.First()
+}
+
+// 统计元素个数
+func (t *Iter) Count(Release ...bool) int {
+	if len(Release) > 0 && Release[0] {
+		defer t.iter.Release()
+	}
+	count := 0
+	for t.iter.Next() {
+		count++
+	}
+	return count
+}
+func (t *Iter) First(Release ...bool) (key []byte, value []byte) {
+	if len(Release) > 0 && Release[0] {
+		defer t.iter.Release()
+	}
 	if !t.iter.First() {
 		return nil, nil
 	}
 	return t.iter.Key(), t.iter.Value()
 }
-func (t *Iter) Last() (key []byte, value []byte) {
+func (t *Iter) Last(Release ...bool) (key []byte, value []byte) {
+	if len(Release) > 0 && Release[0] {
+		defer t.iter.Release()
+	}
 	if !t.iter.Last() {
 		return nil, nil
 	}
 	return t.iter.Key(), t.iter.Value()
 }
-func (t *Iter) Next() (key []byte, value []byte) {
+func (t *Iter) Next(Release ...bool) (key []byte, value []byte) {
+	if len(Release) > 0 && Release[0] {
+		defer t.iter.Release()
+	}
 	if !t.iter.Next() {
 		return nil, nil
 	}
 	return t.iter.Key(), t.iter.Value()
 }
-func (t *Iter) Prev() (key []byte, value []byte) {
+func (t *Iter) Prev(Release ...bool) (key []byte, value []byte) {
+	if len(Release) > 0 && Release[0] {
+		defer t.iter.Release()
+	}
 	if !t.iter.Prev() {
 		return nil, nil
 	}

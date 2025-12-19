@@ -126,22 +126,27 @@ func (t *Table) GetFullTextPrefix() string {
 	return t.name + SPLIT + "ft" //+ SPLIT
 }
 
+/*
+// 获取主键值
+func (t *Table) GetPrimaryValue() []byte {
+	t.InitPrimary()
+	return AnyToBytes(t.fields[t.primary])
+}
+
+// 获取主键前缀
+func (t *Table) GetPrimaryPrefixValue() []byte {
+	pfx := []byte(t.GetPrimaryPrefix())
+	val := t.GetPrimaryValue()
+	return bytes.Join([][]byte{pfx, val}, []byte(SPLIT))
+}
+*/
 // 获取索引值
-// 匹配字段matchesfield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) GetIndexsPrefix(fieldsBytes *map[string][]byte, matchesfield ...string) [][]byte {
+func (t *Table) GetIndexsPrefix(fieldsBytes *map[string][]byte) [][]byte {
 	indexValues := make([][]byte, 0, len(t.index))
 	indexPrefix := []byte(t.GetIndexPrefix())
 	var exists bool
 	var fieldValue []byte
-	//匹配字段
-
 	for _, index := range t.index {
-		// 遍历matchesfield，判断index是否包含在matchesfield中
-		for _, matches := range matchesfield {
-			if !slices.Contains(index, matches) {
-				continue
-			}
-		}
 		var idx bytes.Buffer
 		idx.Write(indexPrefix)
 		for _, field := range index {
@@ -168,8 +173,7 @@ func (t *Table) GetIndexsPrefix(fieldsBytes *map[string][]byte, matchesfield ...
 
 // 获取全文索引值
 // 只支持字符串类型的全文索引，其他类型的字段值会被转换为字符串。
-// 匹配字段matchesfield ，用于记录修改某个字段时，只需要更新该字段的全文索引即可。
-func (t *Table) GetFullTextsPrefix(fieldsBytes *map[string][]byte, matchesfield ...string) [][]byte {
+func (t *Table) GetFullTextValue(fieldsBytes *map[string][]byte) [][]byte {
 	fullTextValues := make([][]byte, 0, len(t.fullText))
 	if t.ftlen == 0 {
 		t.ftlen = 5
@@ -177,12 +181,7 @@ func (t *Table) GetFullTextsPrefix(fieldsBytes *map[string][]byte, matchesfield 
 	fullTextPrefix := []byte(t.GetFullTextPrefix())
 	var fieldValue []byte
 	var exists bool
-
 	for _, field := range t.fullText {
-		// 遍历matchesfield，判断field是否包含在matchesfield中
-		if !slices.Contains(matchesfield, field) {
-			continue
-		}
 		// 获取字段的实际值
 		fieldValue, exists = (*fieldsBytes)[field]
 		if !exists {
@@ -302,9 +301,8 @@ func (t *Table) RecordKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, p
 }
 
 // put索引KV
-// 匹配字段ufield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) IndexKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
-	idxs := t.GetIndexsPrefix(fieldsBytes, ufield...)
+func (t *Table) IndexKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool) {
+	idxs := t.GetIndexsPrefix(fieldsBytes)
 	value := (*fieldsBytes)[t.primary]
 	if len(value) == 0 {
 		fmt.Printf("主键 '%s' 的值为空，无法创建索引\n", t.primary)
@@ -319,9 +317,8 @@ func (t *Table) IndexKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, pu
 }
 
 // put全文索引KV
-// 匹配字段ufield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) FullTextKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
-	idxs := t.GetFullTextsPrefix(fieldsBytes, ufield...)
+func (t *Table) FullTextKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool) {
+	idxs := t.GetFullTextValue(fieldsBytes)
 	value := (*fieldsBytes)[t.primary]
 	if len(value) == 0 {
 		fmt.Printf("主键 '%s' 的值为空，无法创建索引\n", t.primary)
@@ -438,33 +435,24 @@ func (t *Table) Update(fields *map[string]any) error {
 	if !ok {
 		return fmt.Errorf("更新操作必须提供主键字段 '%s'", t.primary)
 	}
-	//获取要修改的字段，用于更新索引和全文索引
-	var matchesfield []string
-	for field := range *fields {
-		if field != t.primary {
-			matchesfield = append(matchesfield, field)
-		}
-	}
 	// 读取旧记录
 	record := t.Read(primaryValue)
 	oldFields := t.ParseValue(record)
 	if oldFields == nil {
 		return fmt.Errorf("主键值 '%v' 的记录不存在", primaryValue)
 	}
-	batch := Batch.Get().(*leveldb.Batch)
-	defer Batch.Put(batch)
-	oldfieldsBytes := t.FieldsToBytes(&oldFields)
-	//获取要删除的旧索引和全文索引
-	t.IndexKV(&oldfieldsBytes, batch, false, matchesfield...)
-	t.FullTextKV(&oldfieldsBytes, batch, false, matchesfield...)
-	//更新字段值
+	// 创建新记录
+	newTable, _ := TableNew(t.name)
+	newTable.primary = t.primary
+	// 删除旧记录并插入新记录
+	if err := t.Delete(&oldFields); err != nil {
+		return err
+	}
+	newFields := make(map[string]any, len(oldFields))
 	// 合并旧记录和新记录的字段值
-	maps.Copy(oldFields, *fields)
-	newfieldsBytes := t.FieldsToBytes(&oldFields)
-	t.RecordKV(&newfieldsBytes, batch, true)
-	t.IndexKV(&newfieldsBytes, batch, true, matchesfield...)
-	t.FullTextKV(&newfieldsBytes, batch, true, matchesfield...)
-	err := t.rsdb.Db.Write(batch, nil)
+	maps.Copy(newFields, oldFields)
+	maps.Copy(newFields, *fields)
+	_, err := newTable.Insert(&newFields)
 	if err != nil {
 		return err
 	}

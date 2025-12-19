@@ -232,9 +232,9 @@ func TestGetFullTextValue(t *testing.T) {
 	// 获取全文索引值
 
 	fieldsBytes := table.FieldsToBytes(&fields)
-	fullTextValues := table.GetFullTextsPrefix(&fieldsBytes)
+	fullTextValues := table.GetFullTextValue(&fieldsBytes)
 	if len(fullTextValues) == 0 {
-		t.Error("GetFullTextsPrefix 应该返回全文索引值")
+		t.Error("GetFullTextValue 应该返回全文索引值")
 		return
 	}
 
@@ -762,11 +762,13 @@ func TestTableSearch(t *testing.T) {
 		fields := map[string]any{
 			"id": 3,
 		}
-		dataset := table.SearchByPrimary(&fields).GetRecord(true)
-		if len(dataset) == 0 {
-			t.Fatalf("SearchByPrimary 失败: %v", err)
+		dataIter := table.Search(&fields)
+		if dataIter.iter == nil {
+			t.Fatalf("Search 失败: %v", err)
 		}
-		rcd := dataset[0]
+		defer dataIter.Release()
+		_, v := dataIter.First()
+		rcd := table.ParseValue(v)
 		fmt.Printf("rcd: %v\n", rcd)
 		//判断data[4]和records是否相等
 		if rcd["id"] != data[2]["id"] {
@@ -775,30 +777,13 @@ func TestTableSearch(t *testing.T) {
 
 		// 第二次搜索，从缓存中获取结果
 		//fields["id"] = 3
-		dataset = table.SearchByPrimary(&fields).GetRecord(true)
-		if len(dataset) == 0 {
-			t.Fatalf("SearchByPrimary 失败: %v", err)
-		}
-		rcd = dataset[0]
-		fmt.Printf("rcd: %v\n", rcd)
-		//判断data[4]和records是否相等
-		if rcd["id"] != data[2]["id"] {
-			t.Errorf("搜索id为3的记录错误，期望: %v, 实际: %v", data[2]["id"], rcd["id"])
-		}
-	})
-	// TestSearchCache 测试Search函数的缓存机制
-	t.Run("SearchCache", func(t *testing.T) {
-		// 第一次搜索，缓存结果
-		fields := map[string]any{
-			"id": 3,
-		}
-		dataIter := table.Search(&fields)
+		dataIter = table.Search(&fields)
 		if dataIter.iter == nil {
 			t.Fatalf("Search 失败: %v", err)
 		}
 		defer dataIter.Release()
-		_, v := dataIter.First()
-		rcd := table.ParseValue(v)
+		_, v = dataIter.First()
+		rcd = table.ParseValue(v)
 		fmt.Printf("rcd: %v\n", rcd)
 		//判断data[4]和records是否相等
 		if rcd["id"] != data[2]["id"] {

@@ -1,0 +1,47 @@
+package main
+
+import (
+	"bytes"
+	"fmt"
+)
+
+func main() {
+	// 示例1：基本用法
+	b := []byte("hello world")
+	index := bytes.IndexByte(b, 'o')
+	fmt.Printf("示例1 - 查找'o'在'hello world'中的位置: %d\n", index) // 输出: 4
+
+	// 示例2：查找不存在的字节
+	index = bytes.IndexByte(b, 'x')
+	fmt.Printf("示例2 - 查找'x'在'hello world'中的位置: %d\n", index) // 输出: -1
+
+	// 示例3：查找多个相同字节中的第一个
+	index = bytes.IndexByte(b, 'l')
+	fmt.Printf("示例3 - 查找第一个'l'在'hello world'中的位置: %d\n", index) // 输出: 2
+
+	// 示例4：在空切片中查找
+	b = []byte("")
+	index = bytes.IndexByte(b, 'a')
+	fmt.Printf("示例4 - 在空切片中查找'a'的位置: %d\n", index) // 输出: -1
+
+	// 示例5：在实际场景中的应用（类似Table.go中的用法）
+	// 假设我们有一个键值对字符串："name:value"
+	kv := []byte("name:John")
+	// 查找冒号的位置
+	pos := bytes.IndexByte(kv, ':')
+	if pos != -1 {
+		key := string(kv[:pos])
+		value := string(kv[pos+1:])
+		fmt.Printf("示例5 - 解析键值对: key='%s', value='%s'\n", key, value) // 输出: key='name', value='John'
+	}
+
+	// 示例6：查找字节切片中的第一个空格
+	b = []byte("hello   world")
+	index = bytes.IndexByte(b, ' ')
+	fmt.Printf("示例6 - 查找第一个空格在'hello   world'中的位置: %d\n", index) // 输出: 5
+
+	// 示例7：查找字节切片中的最后一个字符
+	b = []byte("hello")
+	index = bytes.IndexByte(b, 'o')
+	fmt.Printf("示例7 - 查找'o'在'hello'中的位置: %d\n", index) // 输出: 4
+}

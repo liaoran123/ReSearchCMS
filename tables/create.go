@@ -5,13 +5,13 @@ import (
 )
 
 var Tables = map[string]*storedb.Table{
-	"mulu":    CreateTable_mulu(),
+	"dir":     CreateTable_dir(),
 	"article": CreateTable_article(),
 }
 
 // CreateTable_mulu 创建目录表
-func CreateTable_mulu() *storedb.Table {
-	table, err := storedb.TableNew("mulu")
+func CreateTable_dir() *storedb.Table {
+	table, err := storedb.TableNew("dir")
 	if err != nil {
 		return nil
 	}

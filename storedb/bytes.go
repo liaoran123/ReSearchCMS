@@ -9,18 +9,6 @@ import (
 
 type Bytes []byte
 
-/*
-// 将[]byte转换为任意类型
-
-	func (b Bytes) ToAny() any {
-		var value any
-		err := json.Unmarshal(b, &value)
-		if err != nil {
-			return nil
-		}
-		return value
-	}
-*/
 func (b Bytes) Bool() bool {
 	if len(b) == 0 {
 		return false
@@ -281,44 +269,6 @@ func (b Bytes) Jion(ib ...[]byte) []byte {
 	return b //原本的 b值，并不能被改变，所有需要返回一个新的值
 }
 
-/*
-// 根据分隔符SPLIT进行分割
-func (b Bytes) Split() [][]byte {
-	rs := [][]byte{}
-	s := []byte{}
-	split := SPLIT[0]
-	blen := len(b)
-
-	for i := 0; i < blen; i++ {
-		c := b[i]
-		if c == split {
-			// 检查是否是连续分隔符
-			if i+1 < blen && b[i+1] == split {
-				// 连续分隔符，添加到当前切片
-				s = append(s, c)
-				s = append(s, c)
-				i++ // 跳过下一个分隔符
-			} else {
-				// 单个分隔符，分割切片
-				if len(s) > 0 {
-					rs = append(rs, s)
-					s = []byte{}
-				}
-			}
-		} else {
-			// 普通字符，添加到当前切片
-			s = append(s, c)
-		}
-	}
-
-	// 添加最后一个切片（如果有内容）
-	if len(s) > 0 {
-		rs = append(rs, s)
-	}
-
-	return rs
-}
-*/
 // 根据分隔符SPLIT进行分割
 func (b Bytes) Split(sp ...byte) [][]byte {
 	rs := [][]byte{}
@@ -359,35 +309,3 @@ func (b Bytes) Split(sp ...byte) [][]byte {
 
 	return rs
 }
-
-/*
-// 根据()分隔进行反转义
-// 即根据右括号)进行分割
-// 如： 1(ab1c)3(de)2(gh) => [ab1c de gh]
-func (b Bytes) Split() [][]byte {
-	rs := [][]byte{}
-	//var s bytes.Buffer
-	s := []byte{}
-	rightSPLIT := RIGHT_SPLIT[0]
-	blen := len(b)
-	for i := range blen {
-		c := b[i]
-		//s.WriteByte(c)
-		s = append(s, c)
-		if i+1 < blen {
-			switch c {
-			case rightSPLIT:
-				if b[i+1] != rightSPLIT { //遇到单个右括号)进行分割
-					rs = append(rs, s)
-					s = []byte{}
-					continue
-				}
-			}
-		}
-	}
-	if len(s) > 0 {
-		rs = append(rs, s)
-	}
-	return rs
-}
-*/

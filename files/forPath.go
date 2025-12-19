@@ -3,11 +3,13 @@ package files
 import (
 	"os"
 	"path/filepath"
+	"researchCms/tables"
+	"strconv"
 )
 
 // TraversePathAndReadFiles 根据给定路径遍历读取所有文本文件内容
-func TraversePathAndReadFiles(rootPath string) (map[string]string, error) {
-	result := make(map[string]string)
+func TraversePathAndReadFiles(rootPath string) error {
+
 	err := filepath.Walk(rootPath,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -15,6 +17,13 @@ func TraversePathAndReadFiles(rootPath string) (map[string]string, error) {
 			}
 			// 跳过目录
 			if info.IsDir() {
+				//打印目录名称
+				println(path)
+				// 插入目录到数据库
+				tables.Tables["dir"].Insert(&map[string]any{
+					"name": info.Name(),
+					"url":  path,
+				})
 				return nil
 			}
 			// 读取文件内容
@@ -23,9 +32,10 @@ func TraversePathAndReadFiles(rootPath string) (map[string]string, error) {
 				return readErr
 			}
 			// 保存到结果中，key 为文件路径，value 为文本内容
-			result[path] = string(content)
+			println("文件路径：" + path)
+			println("文件内容长度：" + strconv.Itoa(len(content)))
 			return nil
 		})
 
-	return result, err
+	return err
 }
