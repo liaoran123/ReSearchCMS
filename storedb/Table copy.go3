@@ -20,21 +20,21 @@ const SPLIT = "-" //分隔符
 提供灵活的组合索引优化查询
 */
 type Table struct {
-	name string // 表名
+	name string
 	/*
 		半结构，可以随意增加字段
 		泛型化，字段可以存储任意类型，不限制某种类型。至于有什么作用，看自己发挥。
 		底层支持泛型，业务上则由自己定义规则。
 		默认固定一个id字段为自动增值，当值为nil时，使用counter自动增值。
 	*/
-	fields map[string]any // 字段映射，string为字段名，any为字段值
+	fields map[string]any //string为字段名，any为字段值。
 	//下面的数组元素，对应于上面的fields的key字段名称
-	primary  string     // 主键字段，只支持单个主键
-	counter  AutoInt    // 自动增值计数器，使用自定义的AutoInt
-	index    [][]string // 索引数组，支持单索引和组合索引
-	fullText []string   // 全文索引字段名
-	ftlen    uint8      // 全文索引分词长度，默认是5.限制是3--11
-	rsdb     *rsdb      // 数据库实例，不需要序列化
+	primary  string     //只支持单个主键。
+	counter  AutoInt    //自动增值计数器 使用atomic.Int64需要转换太麻烦，直接用自定义的AutoInt
+	index    [][]string //单索引，组合索引，全文索引等的各种组合索引
+	fullText []string   //全文索引字段名
+	ftlen    uint8      //全文索引分词长度，默认是5.限制是3--11.
+	rsdb     *rsdb
 }
 
 func (t *Table) Contains(v []byte) bool {
@@ -117,76 +117,6 @@ func (t *Table) AutoValue() int {
 }
 
 // 主键前缀
-
-// GetName 获取表名
-func (t *Table) GetName() string {
-	return t.name
-}
-
-// GetPrimary 获取主键字段名
-func (t *Table) GetPrimary() string {
-	return t.primary
-}
-
-/*
-// MarshalJSON 实现json.Marshaler接口，自定义序列化逻辑
-
-	func (t *Table) MarshalJSON() ([]byte, error) {
-		// 创建一个临时结构体用于序列化
-		temp := struct {
-			Name     string         `json:"name"`
-			Fields   map[string]any `json:"fields"`
-			Primary  string         `json:"primary"`
-			Counter  int            `json:"counter"` // 将AutoInt转换为int
-			Index    [][]string     `json:"index"`
-			FullText []string       `json:"full_text"`
-			FtLen    uint8          `json:"ft_len"`
-		}{
-			Name:     t.name,
-			Fields:   t.fields,
-			Primary:  t.primary,
-			Counter:  t.counter.Get(), // 获取AutoInt的int值
-			Index:    t.index,
-			FullText: t.fullText,
-			FtLen:    t.ftlen,
-		}
-
-		return json.Marshal(temp)
-	}
-
-// UnmarshalJSON 实现json.Unmarshaler接口，自定义反序列化逻辑
-
-	func (t *Table) UnmarshalJSON(data []byte) error {
-		// 创建一个临时结构体用于反序列化
-		var temp struct {
-			Name     string         `json:"name"`
-			Fields   map[string]any `json:"fields"`
-			Primary  string         `json:"primary"`
-			Counter  int            `json:"counter"` // 将int转换为AutoInt
-			Index    [][]string     `json:"index"`
-			FullText []string       `json:"full_text"`
-			FtLen    uint8          `json:"ft_len"`
-		}
-
-		// 反序列化到临时结构体
-		if err := json.Unmarshal(data, &temp); err != nil {
-			return err
-		}
-
-		// 将临时结构体的值复制到Table实例
-		t.name = temp.Name
-		t.fields = temp.Fields
-		t.primary = temp.Primary
-		t.counter.Set(temp.Counter) // 设置AutoInt的值
-		t.index = temp.Index
-		t.fullText = temp.FullText
-		t.ftlen = temp.FtLen
-
-		// 保持rsdb不变，不需要从JSON中恢复
-
-		return nil
-	}
-*/
 func (t *Table) GetPrimaryPrefix() string {
 	return t.name + SPLIT + "pk" //+ SPLIT
 }
@@ -596,9 +526,9 @@ func (t *Table) For() iterator.Iterator {
 }
 
 // 遍历表所有数据
-func (t *Table) ForData() iterator.Iterator {
+func (t *Table) ForData() Iter {
 	pfx := t.GetPrimaryPrefix() + SPLIT
-	return t.rsdb.GetIterator([]byte(pfx))
+	return IterNew(t.rsdb.GetIterator([]byte(pfx)))
 }
 
 // 根据索引进行搜索返回迭代器
@@ -682,9 +612,9 @@ func (t *Table) MatchIndex(field ...string) ([]string, int) {
 
 // 根据字段名和值搜索返回数据迭代器
 // 缓存迭代器，避免每次for都重新创建迭代器
-func (t *Table) Search(fields *map[string]any) iterator.Iterator {
+func (t *Table) Search(fields *map[string]any) Iter {
 	if t.fields == nil {
-		return nil
+		return Iter{}
 	}
 	var field []string
 	for k := range *fields {
@@ -692,9 +622,28 @@ func (t *Table) Search(fields *map[string]any) iterator.Iterator {
 	}
 	idx, idxType := t.MatchIndex(field...)
 	if idx == nil {
-		return nil
+		return Iter{}
 	}
-	return t.SearchForIndex(idx, idxType, fields)
+	/*// 构建缓存键
+	key := t.name + SPLIT
+	// 拼接索引字段和值
+	for _, v := range idx {
+		key += v + ":" + AnyToStr((*fields)[v]) + SPLIT
+	}
+
+		IterCaches不能并发重用，故放弃
+			// 检查缓存是否存在迭代器
+			Iter, exists := IterCaches.Load(key)
+			if !exists {
+				// 缓存不存在迭代器，创建新的迭代器
+				newiter := t.SearchForIndex(idx, idxType, fields)
+				Iter = IterNew(newiter)
+				if Iter.iter != nil {
+					IterCaches.Store(key, Iter)
+				}
+			}*/
+	newiter := t.SearchForIndex(idx, idxType, fields)
+	return IterNew(newiter)
 }
 
 // 按主键搜索

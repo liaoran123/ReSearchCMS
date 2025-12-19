@@ -1,6 +1,7 @@
 package storedb
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"path/filepath"
@@ -20,6 +21,12 @@ var (
 		New: func() any {
 			return new(leveldb.Batch)
 		},
+	}
+	//系统保留key，不能作为用户数据存储
+	ReservedKeys = []string{
+		"sys",   //系统表
+		"table", //表目录
+		"file",  //文件表
 	}
 )
 
@@ -102,4 +109,17 @@ func (s *rsdb) Close() error {
 		return s.Db.Close()
 	}
 	return nil
+}
+
+// 保存表信息
+func (s *rsdb) SaveTable(table *Table) error {
+	// 构建表信息的key
+	key := []byte("table-" + table.name)
+	// 序列化表结构
+	data, err := json.Marshal(table)
+	if err != nil {
+		return err
+	}
+	// 写入数据库
+	return s.Db.Put(key, data, nil)
 }

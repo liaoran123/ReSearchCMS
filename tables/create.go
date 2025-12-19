@@ -4,10 +4,8 @@ import (
 	"researchCms/storedb"
 )
 
-var Tables = map[string]*storedb.Table{
-	"dir":     CreateTable_dir(),
-	"article": CreateTable_article(),
-}
+var Dir = CreateTable_dir()
+var Article = CreateTable_article()
 
 // CreateTable_mulu 创建目录表
 func CreateTable_dir() *storedb.Table {

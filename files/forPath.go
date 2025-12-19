@@ -4,26 +4,26 @@ import (
 	"os"
 	"path/filepath"
 	"researchCms/tables"
+
 	"strconv"
 )
 
 // TraversePathAndReadFiles 根据给定路径遍历读取所有文本文件内容
 func TraversePathAndReadFiles(rootPath string) error {
-
 	err := filepath.Walk(rootPath,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
+			//打印目录名称
+			println(path)
+			// 插入目录到数据库
+			tables.Dir.Insert(&map[string]any{
+				"name": info.Name(),
+				"url":  path,
+			})
 			// 跳过目录
 			if info.IsDir() {
-				//打印目录名称
-				println(path)
-				// 插入目录到数据库
-				tables.Tables["dir"].Insert(&map[string]any{
-					"name": info.Name(),
-					"url":  path,
-				})
 				return nil
 			}
 			// 读取文件内容

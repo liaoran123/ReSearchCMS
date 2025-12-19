@@ -39,12 +39,6 @@ func (t *Iter) SetIsRelease(isRelease bool) {
 	t.IsRelease = isRelease
 }
 
-/*
-// 因为每次for之后会释放迭代器，所以需要在第二次for之前设置迭代器
-func (t *Iter) Setiter(iter iterator.Iterator) {
-	t.iter = iter
-}
-*/
 // 遍历数据，esc为true时，从前往后遍历，false时，从后往前遍历
 // limit为遍历的范围，0表示从当前位置开始遍历，1表示从当前位置开始遍历，count个元素
 // 2个参数表示从start位置开始遍历，count个元素
