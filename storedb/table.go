@@ -428,7 +428,7 @@ func (t *Table) Delete(fields *map[string]any) error {
 	return nil
 }
 
-// 更新记录，由于项目基本没有更新操作，所以并不考虑性能和一致性。
+// 更新记录
 func (t *Table) Update(fields *map[string]any) error {
 	if t.fields == nil {
 		return fmt.Errorf("表 '%s' 未设置字段和类型", t.name)
@@ -447,20 +447,20 @@ func (t *Table) Update(fields *map[string]any) error {
 	}
 	// 读取旧记录
 	record := t.Read(primaryValue)
-	oldFields := t.ParseValue(record)
-	if oldFields == nil {
+	currentFields := t.ParseValue(record)
+	if currentFields == nil {
 		return fmt.Errorf("主键值 '%v' 的记录不存在", primaryValue)
 	}
 	batch := Batch.Get().(*leveldb.Batch)
 	defer Batch.Put(batch)
-	oldfieldsBytes := t.FieldsToBytes(&oldFields)
+	oldfieldsBytes := t.FieldsToBytes(&currentFields)
 	//获取要删除的旧索引和全文索引
 	t.IndexKV(&oldfieldsBytes, batch, false, matchesfield...)
 	t.FullTextKV(&oldfieldsBytes, batch, false, matchesfield...)
 	//更新字段值
 	// 合并旧记录和新记录的字段值
-	maps.Copy(oldFields, *fields)
-	newfieldsBytes := t.FieldsToBytes(&oldFields)
+	maps.Copy(currentFields, *fields)
+	newfieldsBytes := t.FieldsToBytes(&currentFields)
 	t.RecordKV(&newfieldsBytes, batch, true)
 	t.IndexKV(&newfieldsBytes, batch, true, matchesfield...)
 	t.FullTextKV(&newfieldsBytes, batch, true, matchesfield...)
