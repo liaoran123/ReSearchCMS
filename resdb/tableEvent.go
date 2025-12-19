@@ -1,4 +1,4 @@
-package storedb
+package resdb
 
 //### 事件机制
 //添加事件机制，便于在表结构变化时触发相应的处理逻辑

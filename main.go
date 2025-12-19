@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"researchCms/files"
-	"researchCms/storedb"
+	"researchCms/resdb"
 	"researchCms/tables"
 )
 
@@ -13,7 +13,7 @@ func main() {
 	files.TraversePathAndReadFiles("E:\\360Downloads")
 	iter := tables.Dir.ForData()
 	defer iter.Release()
-	pdi := storedb.TableIterNew(tables.Dir, iter)
+	pdi := resdb.TableIterNew(tables.Dir, iter)
 	rd := pdi.GetRecordsByPrimary(true)
 	for _, record := range rd {
 		fmt.Println(record)

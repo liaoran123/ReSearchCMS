@@ -1,5 +1,5 @@
 // 测试文件，对应 Iter.go
-package storedb
+package resdb
 
 import (
 	"testing"

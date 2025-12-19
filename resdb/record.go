@@ -1,4 +1,4 @@
-package storedb
+package resdb
 
 type Record map[string]any
 

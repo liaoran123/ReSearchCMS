@@ -16,8 +16,7 @@ func TraversePathAndReadFiles(rootPath string) error {
 				return err
 			}
 			//打印目录名称
-			println(path)
-
+			//println(path)
 			// 插入目录到数据库
 			tables.Dir.Insert(&map[string]any{
 				"name": info.Name(),

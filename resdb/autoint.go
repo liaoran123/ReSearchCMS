@@ -1,4 +1,4 @@
-package storedb
+package resdb
 
 import "sync"
 

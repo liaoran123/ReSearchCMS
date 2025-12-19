@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"researchCms/storedb"
+	storedb "researchCms/resdb"
 )
 
 var Dir = CreateTable_dir()

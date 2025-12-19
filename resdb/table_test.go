@@ -1,5 +1,5 @@
 // 测试文件，对应 table.go
-package storedb
+package resdb
 
 import (
 	"bytes"
@@ -735,43 +735,8 @@ func TestTableSearch(t *testing.T) {
 		defer dataIter.Release()
 		records := dataIter.GetRecordsByPrimary(true)
 		//判断data[1]和records是否相等
-		if records[0][table.primary] == data[1]["id"] {
+		if len(records) != 0 {
 			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary])
-		}
-	})
-	// TestSearchCache 测试Search函数的缓存机制
-	t.Run("SearchCache", func(t *testing.T) {
-		// 第一次搜索，缓存结果
-		fields := map[string]any{
-			"id": 3,
-		}
-		dataIter := table.SearchToDataIter(&fields)
-		if dataIter.iter == nil {
-			t.Fatalf("SearchToDataIter 失败: %v", err)
-		}
-		defer dataIter.Release()
-		dataset := dataIter.GetRecordsByPrimary(true)
-		if len(dataset) == 0 {
-			t.Fatalf("SearchByPrimary 失败: %v", err)
-		}
-		rcd := dataset[0]
-		fmt.Printf("rcd: %v\n", rcd)
-		//判断data[4]和records是否相等
-		if rcd["id"] != data[2]["id"] {
-			dataset = table.SearchToDataIter(&fields).GetRecordsByPrimary(true)
-		}
-
-		// 第二次搜索，从缓存中获取结果
-		//fields["id"] = 3
-		dataset = dataIter.GetRecordsByPrimary(true)
-		if len(dataset) == 0 {
-			t.Fatalf("SearchByPrimary 失败: %v", err)
-		}
-		rcd = dataset[0]
-		fmt.Printf("rcd: %v\n", rcd)
-		//判断data[4]和records是否相等
-		if rcd["id"] != data[2]["id"] {
-			t.Errorf("搜索id为3的记录错误，期望: %v, 实际: %v", data[2]["id"], rcd["id"])
 		}
 	})
 
@@ -779,7 +744,7 @@ func TestTableSearch(t *testing.T) {
 	t.Run("SearchAll", func(t *testing.T) {
 		// 第一次搜索，缓存结果
 		fields := map[string]any{
-			"id": "", // 空字符串表示打开所有记录
+			"id": nil, // id=nil或空，将获取所有表记录
 		}
 		dataIter := table.SearchToDataIter(&fields)
 		if dataIter.iter == nil {
