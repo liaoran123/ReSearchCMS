@@ -37,7 +37,7 @@ func TestSearch(t *testing.T) {
 	fields = map[string]any{
 		"id": 1,
 	}
-	td := table.SearchByIndex(&fields)
+	td := table.SearchToDataIter(&fields)
 	if td.iter != nil {
 		td.Release() // 释放资源
 	}
@@ -46,7 +46,7 @@ func TestSearch(t *testing.T) {
 	fields = map[string]any{
 		"name": "test",
 	}
-	t1 := table.SearchByIndex(&fields)
+	t1 := table.SearchToDataIter(&fields)
 	if t1.iter != nil {
 		t1.Release() // 释放资源
 	}
@@ -56,7 +56,7 @@ func TestSearch(t *testing.T) {
 		"age":  18,
 		"city": "New York",
 	}
-	t2 := table.SearchByIndex(&fields)
+	t2 := table.SearchToDataIter(&fields)
 	if t2.iter != nil {
 		t2.Release() // 释放资源
 	}
@@ -94,8 +94,9 @@ func TestSearchNoIndex(t *testing.T) {
 	fields = map[string]any{
 		"name": "test",
 	}
-	td := table.SearchByIndex(&fields)
+	td := table.SearchToDataIter(&fields)
 	if td.iter != nil {
-		t.Errorf("SearchByIndex函数在没有匹配索引时应该返回nil，实际返回了%v", td)
+		t.Errorf("SearchToDataIter函数在没有匹配索引时应该返回nil，实际返回了%v", td)
 	}
+	td.Release() // 释放资源
 }

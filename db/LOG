@@ -1,6 +1,6 @@
 =============== Dec 19, 2025 (CST) ===============
-18:37:39.491924 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
-18:37:39.527566 db@open opening
-18:37:39.528543 version@stat F·[] S·0B[] Sc·[]
-18:37:39.529519 db@janitor F·2 G·0
-18:37:39.529519 db@open done T·1.9533ms
+20:58:51.005218 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+20:58:51.040371 db@open opening
+20:58:51.042325 version@stat F·[] S·0B[] Sc·[]
+20:58:51.043302 db@janitor F·2 G·0
+20:58:51.043302 db@open done T·2.9305ms

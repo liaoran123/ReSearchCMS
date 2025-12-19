@@ -18,12 +18,14 @@ func CreateTable_dir() *storedb.Table {
 		"id":   0,
 		"name": "",
 		"url":  "",
+		"ext":  "", //文件后缀
 	}
 	table.SetFields(fields)
 	//设置主键
 	table.SetPrimary("id")
 	// 添加索引
 	table.AddIndex([]string{"url"})
+	table.AddIndex([]string{"ext"})
 	//table.AddFullTextField("description")
 	return table
 }

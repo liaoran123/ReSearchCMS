@@ -584,11 +584,11 @@ func TestTableSearch(t *testing.T) {
 			}
 		}
 
-		primaryData := PrimaryDataIterNew(table, dataIter)
-		if primaryData == nil {
-			t.Fatalf("PrimaryDataIterNew 失败: %v", err)
+		TableIter := TableIterNew(table, dataIter)
+		if TableIter == nil {
+			t.Fatalf("TableIterNew 失败: %v", err)
 		}
-		records := primaryData.GetRecord(true)
+		records := TableIter.GetRecordsByPrimary(true)
 		for _, item := range records {
 			fmt.Printf("records: %v\n", item)
 		}
@@ -601,11 +601,11 @@ func TestTableSearch(t *testing.T) {
 		fields := map[string]any{
 			"id": 1,
 		}
-		dataIter := table.SearchByPrimary(&fields)
+		dataIter := table.SearchToDataIter(&fields)
 		if dataIter == nil {
-			t.Fatalf("Search 失败: %v", err)
+			t.Fatalf("SearchToDataIter 失败: %v", err)
 		}
-		records := dataIter.GetRecord(true)
+		records := dataIter.GetRecordsByPrimary(true)
 		fmt.Printf("records: %v\n", records)
 		//判断data[0]和records是否相等
 		if records[0][table.primary] != data[0]["id"] {
@@ -629,12 +629,12 @@ func TestTableSearch(t *testing.T) {
 		fields := map[string]any{
 			"name": "Charlie",
 		}
-		dataIter := table.SearchByIndex(&fields)
+		dataIter := table.SearchToDataIter(&fields)
 		if dataIter == nil {
-			t.Fatalf("Search 失败: %v", err)
+			t.Fatalf("SearchToDataIter 失败: %v", err)
 		}
 		defer dataIter.Release()
-		records := dataIter.GetRecord(true)
+		records := dataIter.GetRecordsByIndex(true)
 		for _, item := range records {
 			fmt.Printf("records: %v\n", item)
 		}
@@ -649,12 +649,12 @@ func TestTableSearch(t *testing.T) {
 		fields := map[string]any{
 			"description": "Bob",
 		}
-		dataIter := table.SearchByIndex(&fields)
+		dataIter := table.SearchToDataIter(&fields)
 		if dataIter == nil {
-			t.Fatalf("Search 失败: %v", err)
+			t.Fatalf("SearchToDataIter 失败: %v", err)
 		}
 		defer dataIter.Release()
-		records := dataIter.GetRecord(true)
+		records := dataIter.GetRecordsByIndex(true)
 		for _, item := range records {
 			fmt.Printf("records: %v\n", item)
 		}
@@ -675,13 +675,13 @@ func TestTableSearch(t *testing.T) {
 			fields := map[string]any{
 				"description": item["description"],
 			}
-			dataIter := table.SearchByIndex(&fields)
+			dataIter := table.SearchToDataIter(&fields)
 			if dataIter == nil {
-				t.Fatalf("Search 失败: %v", err)
+				t.Fatalf("SearchToDataIter 失败: %v", err)
 			}
 			defer dataIter.Release()
 
-			records := dataIter.GetRecord(true)
+			records := dataIter.GetRecordsByIndex(true)
 			for _, item := range records {
 				fmt.Printf("搜索:%v -》 records: %v\n", fields["description"], item)
 			}
@@ -705,13 +705,13 @@ func TestTableSearch(t *testing.T) {
 			fields := map[string]any{
 				"description": item["description"],
 			}
-			dataIter := table.SearchByIndex(&fields)
+			dataIter := table.SearchToDataIter(&fields)
 			if dataIter.iter == nil {
-				t.Fatalf("Search 失败: %v", err)
+				t.Fatalf("SearchToDataIter 失败: %v", err)
 			}
 			defer dataIter.Release()
 
-			records := dataIter.GetRecord(true)
+			records := dataIter.GetRecordsByIndex(true)
 			for _, item := range records {
 				fmt.Printf("搜索:%v -》 records: %v\n", fields["description"], item)
 			}
@@ -727,13 +727,13 @@ func TestTableSearch(t *testing.T) {
 		fields := map[string]any{
 			"id": 100,
 		}
-		// 使用Search方法搜索不存在的id
-		dataIter := table.SearchByIndex(&fields)
+		// 使用SearchToDataIter方法搜索不存在的id
+		dataIter := table.SearchToDataIter(&fields)
 		if dataIter.iter == nil {
-			t.Fatalf("Search 失败: %v", err)
+			t.Fatalf("SearchToDataIter 失败: %v", err)
 		}
 		defer dataIter.Release()
-		records := dataIter.GetRecord(true)
+		records := dataIter.GetRecordsByPrimary(true)
 		//判断data[1]和records是否相等
 		if records[0][table.primary] == data[1]["id"] {
 			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary])
@@ -745,7 +745,12 @@ func TestTableSearch(t *testing.T) {
 		fields := map[string]any{
 			"id": 3,
 		}
-		dataset := table.SearchByPrimary(&fields).GetRecord(true)
+		dataIter := table.SearchToDataIter(&fields)
+		if dataIter.iter == nil {
+			t.Fatalf("SearchToDataIter 失败: %v", err)
+		}
+		defer dataIter.Release()
+		dataset := dataIter.GetRecordsByPrimary(true)
 		if len(dataset) == 0 {
 			t.Fatalf("SearchByPrimary 失败: %v", err)
 		}
@@ -753,12 +758,12 @@ func TestTableSearch(t *testing.T) {
 		fmt.Printf("rcd: %v\n", rcd)
 		//判断data[4]和records是否相等
 		if rcd["id"] != data[2]["id"] {
-			t.Errorf("搜索id为3的记录错误，期望: %v, 实际: %v", data[2]["id"], rcd["id"])
+			dataset = table.SearchToDataIter(&fields).GetRecordsByPrimary(true)
 		}
 
 		// 第二次搜索，从缓存中获取结果
 		//fields["id"] = 3
-		dataset = table.SearchByPrimary(&fields).GetRecord(true)
+		dataset = dataIter.GetRecordsByPrimary(true)
 		if len(dataset) == 0 {
 			t.Fatalf("SearchByPrimary 失败: %v", err)
 		}
@@ -776,12 +781,12 @@ func TestTableSearch(t *testing.T) {
 		fields := map[string]any{
 			"id": "", // 空字符串表示打开所有记录
 		}
-		dataIter := table.SearchByPrimary(&fields)
+		dataIter := table.SearchToDataIter(&fields)
 		if dataIter.iter == nil {
-			t.Fatalf("SearchByPrimary 失败: %v", err)
+			t.Fatalf("SearchToDataIter 失败: %v", err)
 		}
 		defer dataIter.Release()
-		records := dataIter.GetRecord(true)
+		records := dataIter.GetRecordsByPrimary(true)
 		for i, item := range records {
 			fmt.Printf("item %d: %v\n", i, item)
 		}

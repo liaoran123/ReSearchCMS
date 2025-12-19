@@ -697,14 +697,7 @@ func (t *Table) Search(fields *map[string]any) iterator.Iterator {
 	return t.SearchForIndex(idx, idxType, fields)
 }
 
-// 按主键搜索
-func (t *Table) SearchByPrimary(fields *map[string]any) *PrimaryDataIter {
+func (t *Table) SearchToDataIter(fields *map[string]any) *TableIter {
 	iter := t.Search(fields)
-	return PrimaryDataIterNew(t, iter)
-}
-
-// 按索引搜索
-func (t *Table) SearchByIndex(fields *map[string]any) *IndexDataIter {
-	iter := t.Search(fields)
-	return IndexDataIterNew(t, iter)
+	return TableIterNew(t, iter)
 }

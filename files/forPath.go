@@ -17,10 +17,12 @@ func TraversePathAndReadFiles(rootPath string) error {
 			}
 			//打印目录名称
 			println(path)
+
 			// 插入目录到数据库
 			tables.Dir.Insert(&map[string]any{
 				"name": info.Name(),
 				"url":  path,
+				"ext":  filepath.Ext(path), //文件后缀
 			})
 			// 跳过目录
 			if info.IsDir() {

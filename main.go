@@ -13,8 +13,8 @@ func main() {
 	files.TraversePathAndReadFiles("E:\\360Downloads")
 	iter := tables.Dir.ForData()
 	defer iter.Release()
-	pdi := storedb.PrimaryDataIterNew(tables.Dir, iter)
-	rd := pdi.GetRecord(true)
+	pdi := storedb.TableIterNew(tables.Dir, iter)
+	rd := pdi.GetRecordsByPrimary(true)
 	for _, record := range rd {
 		fmt.Println(record)
 	}
