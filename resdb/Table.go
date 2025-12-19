@@ -211,15 +211,15 @@ func (t *Table) GetIndexsPrefix(fieldsBytes *map[string][]byte, matchesfield ...
 	//匹配字段
 
 	for _, index := range t.index {
-		// 遍历matchesfield，判断index是否包含在matchesfield中
-		for _, matches := range matchesfield {
-			if !slices.Contains(index, matches) {
-				continue
-			}
-		}
 		var idx bytes.Buffer
 		idx.Write(indexPrefix)
 		for _, field := range index {
+			// 遍历matchesfield，判断index是否包含在matchesfield中
+			if len(matchesfield) != 0 {
+				if !slices.Contains(matchesfield, field) {
+					continue
+				}
+			}
 			// 获取字段值
 			fieldValue, exists = (*fieldsBytes)[field]
 			// 如果字段不存在或值为nil，跳过该索引
@@ -255,8 +255,10 @@ func (t *Table) GetFullTextsPrefix(fieldsBytes *map[string][]byte, matchesfield 
 
 	for _, field := range t.fullText {
 		// 遍历matchesfield，判断field是否包含在matchesfield中
-		if !slices.Contains(matchesfield, field) {
-			continue
+		if len(matchesfield) != 0 {
+			if !slices.Contains(matchesfield, field) {
+				continue
+			}
 		}
 		// 获取字段的实际值
 		fieldValue, exists = (*fieldsBytes)[field]

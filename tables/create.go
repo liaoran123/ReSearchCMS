@@ -36,16 +36,18 @@ func CreateTable_article() *storedb.Table {
 	}
 	// 必须先为表预设字段和数据类型
 	fields := map[string]any{
-		"id":          0,
-		"mid":         0,  //目录ID
-		"description": "", //将文章分为多个段落
+		"id":      0,
+		"mid":     0,  //文章目录ID
+		"title":   "", //文章标题
+		"content": "", //文章内容
 	}
 	table.SetFields(fields)
 	//设置主键
-	table.SetPrimary("mid")
+	table.SetPrimary("id") //默认主键为id
 	// 添加索引
 	table.AddIndex([]string{"mid"})
+	table.AddIndex([]string{"title"})
 	// 添加全文索引字段
-	table.AddFullTextField("description")
+	table.AddFullTextField("content")
 	return table
 }
