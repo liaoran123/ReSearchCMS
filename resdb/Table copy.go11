@@ -258,7 +258,7 @@ func (t *Table) GetIndexkeys(fieldsBytes *map[string][]byte, indexs []string, ma
 
 // 获取索引值
 // 匹配字段matchesfield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) GetIndexsPrefix11111(fieldsBytes *map[string][]byte, matchesfield ...string) [][]byte {
+func (t *Table) GetIndexsPrefix(fieldsBytes *map[string][]byte, matchesfield ...string) [][]byte {
 	indexValues := make([][]byte, 0, len(t.index))
 	indexPrefix := []byte(t.GetIndexPrefix())
 	var exists bool
@@ -299,7 +299,7 @@ func (t *Table) GetIndexsPrefix11111(fieldsBytes *map[string][]byte, matchesfiel
 // 获取全文索引值
 // 只支持字符串类型的全文索引，其他类型的字段值会被转换为字符串。
 // 匹配字段matchesfield ，用于记录修改某个字段时，只需要更新该字段的全文索引即可。
-func (t *Table) GetFullTextsPrefix11111(fieldsBytes *map[string][]byte, matchesfield ...string) [][]byte {
+func (t *Table) GetFullTextsPrefix(fieldsBytes *map[string][]byte, matchesfield ...string) [][]byte {
 	fullTextValues := make([][]byte, 0, len(t.fullText))
 	if t.ftlen == 0 {
 		t.ftlen = 5
@@ -452,8 +452,8 @@ func (t *Table) IndexsKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, p
 
 // put索引KV
 // 匹配字段ufield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) IndexKV11111(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
-	idxs := t.GetIndexsPrefix11111(fieldsBytes, ufield...)
+func (t *Table) IndexKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
+	idxs := t.GetIndexsPrefix(fieldsBytes, ufield...)
 	value := (*fieldsBytes)[t.primary]
 	if len(value) == 0 {
 		fmt.Printf("主键 '%s' 的值为空，无法创建索引\n", t.primary)
@@ -469,8 +469,8 @@ func (t *Table) IndexKV11111(fieldsBytes *map[string][]byte, batch *leveldb.Batc
 
 // put全文索引KV
 // 匹配字段ufield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) FullTextKV11111(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
-	idxs := t.GetFullTextsPrefix11111(fieldsBytes, ufield...)
+func (t *Table) FullTextKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
+	idxs := t.GetFullTextsPrefix(fieldsBytes, ufield...)
 	value := (*fieldsBytes)[t.primary]
 	if len(value) == 0 {
 		fmt.Printf("主键 '%s' 的值为空，无法创建索引\n", t.primary)
@@ -584,9 +584,8 @@ func (t *Table) Delete(fields *map[string]any, batchs ...*leveldb.Batch) error {
 		}()
 	}
 	t.RecordKV(&fieldsBytes, batch, false)
-	t.IndexsKV(&fieldsBytes, batch, false)
-	//t.IndexKV(&fieldsBytes, batch, false)
-	//t.FullTextKV(&fieldsBytes, batch, false)
+	t.IndexKV(&fieldsBytes, batch, false)
+	t.FullTextKV(&fieldsBytes, batch, false)
 	if len(batchs) == 0 { //用户未手动控制事务，自动提交
 		err := t.rsdb.Db.Write(batch, nil)
 		if err != nil {
@@ -630,15 +629,15 @@ func (t *Table) Update(fields *map[string]any, batchs ...*leveldb.Batch) error {
 	}
 	oldfieldsBytes := t.FieldsToBytes(&currentFields)
 	//获取要删除的旧索引和全文索引
-	t.IndexsKV(&oldfieldsBytes, batch, false, matchesfield...)
-	//t.FullTextKV(&oldfieldsBytes, batch, false, matchesfield...)
+	t.IndexKV(&oldfieldsBytes, batch, false, matchesfield...)
+	t.FullTextKV(&oldfieldsBytes, batch, false, matchesfield...)
 	//更新字段值
 	// 合并旧记录和新记录的字段值
 	maps.Copy(currentFields, *fields)
 	newfieldsBytes := t.FieldsToBytes(&currentFields)
 	t.RecordKV(&newfieldsBytes, batch, true)
-	t.IndexsKV(&newfieldsBytes, batch, true, matchesfield...)
-	//t.FullTextKV(&newfieldsBytes, batch, true, matchesfield...)
+	t.IndexKV(&newfieldsBytes, batch, true, matchesfield...)
+	t.FullTextKV(&newfieldsBytes, batch, true, matchesfield...)
 	if len(batchs) == 0 { //用户未手动控制事务，自动提交
 		err := t.rsdb.Db.Write(batch, nil)
 		if err != nil {

@@ -38,6 +38,7 @@ func CreateTable_article() *storedb.Table {
 	fields := map[string]any{
 		"id":      0,
 		"mid":     0,  //文章目录ID
+		"secNo":   0,  //文章句子序号
 		"title":   "", //文章标题
 		"content": "", //文章内容
 	}
@@ -46,6 +47,7 @@ func CreateTable_article() *storedb.Table {
 	table.SetPrimary("id") //默认主键为id
 	// 添加索引
 	table.AddIndex([]string{"mid"})
+	table.AddIndex([]string{"secNo"})
 	table.AddIndex([]string{"title"})
 	// 添加全文索引字段
 	table.AddFullTextField("content")

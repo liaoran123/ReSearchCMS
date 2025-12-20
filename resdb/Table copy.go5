@@ -31,8 +31,8 @@ type Table struct {
 	//下面的数组元素，对应于上面的fields的key字段名称
 	primary  string     // 主键字段，只支持单个主键
 	counter  AutoInt    // 自动增值计数器，使用自定义的AutoInt
-	index    [][]string // 索引数组，支持单索引和组合索引，以及单全文索引和组合全文索引
-	fullText []string   // 全文索引字段名，需要添加到索引中
+	index    [][]string // 索引数组，支持单索引和组合索引
+	fullText []string   // 全文索引字段名
 	ftlen    uint8      // 全文索引分词长度，默认是5.限制是3--11
 	rsdb     *rsdb      // 数据库实例，不需要序列化
 }
@@ -128,6 +128,65 @@ func (t *Table) GetPrimary() string {
 	return t.primary
 }
 
+/*
+// MarshalJSON 实现json.Marshaler接口，自定义序列化逻辑
+
+	func (t *Table) MarshalJSON() ([]byte, error) {
+		// 创建一个临时结构体用于序列化
+		temp := struct {
+			Name     string         `json:"name"`
+			Fields   map[string]any `json:"fields"`
+			Primary  string         `json:"primary"`
+			Counter  int            `json:"counter"` // 将AutoInt转换为int
+			Index    [][]string     `json:"index"`
+			FullText []string       `json:"full_text"`
+			FtLen    uint8          `json:"ft_len"`
+		}{
+			Name:     t.name,
+			Fields:   t.fields,
+			Primary:  t.primary,
+			Counter:  t.counter.Get(), // 获取AutoInt的int值
+			Index:    t.index,
+			FullText: t.fullText,
+			FtLen:    t.ftlen,
+		}
+
+		return json.Marshal(temp)
+	}
+
+// UnmarshalJSON 实现json.Unmarshaler接口，自定义反序列化逻辑
+
+	func (t *Table) UnmarshalJSON(data []byte) error {
+		// 创建一个临时结构体用于反序列化
+		var temp struct {
+			Name     string         `json:"name"`
+			Fields   map[string]any `json:"fields"`
+			Primary  string         `json:"primary"`
+			Counter  int            `json:"counter"` // 将int转换为AutoInt
+			Index    [][]string     `json:"index"`
+			FullText []string       `json:"full_text"`
+			FtLen    uint8          `json:"ft_len"`
+		}
+
+		// 反序列化到临时结构体
+		if err := json.Unmarshal(data, &temp); err != nil {
+			return err
+		}
+
+		// 将临时结构体的值复制到Table实例
+		t.name = temp.Name
+		t.fields = temp.Fields
+		t.primary = temp.Primary
+		t.counter.Set(temp.Counter) // 设置AutoInt的值
+		t.index = temp.Index
+		t.fullText = temp.FullText
+		t.ftlen = temp.FtLen
+
+		// 保持rsdb不变，不需要从JSON中恢复
+
+		return nil
+	}
+*/
 func (t *Table) GetPrimaryPrefix() string {
 	return t.name + SPLIT + "pk" //+ SPLIT
 }
@@ -142,123 +201,9 @@ func (t *Table) GetFullTextPrefix() string {
 	return t.name + SPLIT + "ft" //+ SPLIT
 }
 
-// GetAllIndexPrefix 获取所有索引前缀，包括普通索引和全文索引
-func (t *Table) GetKeys(fieldsBytes *map[string][]byte, matchesfield ...string) (keys [][]byte) {
-	for _, indexs := range t.index {
-		if len(matchesfield) != 0 { //是更新情况下
-			for _, field := range indexs {
-				if !slices.Contains(matchesfield, field) {
-					return nil
-				}
-			}
-		}
-		// 统计全文索引的个数，即indexs存在fulltext的字段数
-		fulltextCount := 0
-		for _, field := range indexs {
-			if slices.Contains(t.fullText, field) {
-				fulltextCount++
-			}
-		}
-		switch fulltextCount {
-		case 0: // 普通索引
-			keys = append(keys, t.GetIndexkeys(fieldsBytes, indexs, matchesfield...))
-		case 1: // 全文索引
-			keys = append(keys, t.GetFullTextKeys(fieldsBytes, indexs, matchesfield...)...)
-		default: // 非法索引
-			continue
-		}
-	}
-	return keys
-}
-
-// 获取全文索引值
-// 只支持字符串类型的全文索引，其他类型的字段值会被转换为字符串。
-// 匹配字段matchesfield ，用于记录修改某个字段时，只需要更新该字段的全文索引即可。
-func (t *Table) GetFullTextKeys(fieldsBytes *map[string][]byte, fulltext []string, matchesfield ...string) (r [][]byte) {
-	fullTextPrefix := []byte(t.GetFullTextPrefix())
-	var fieldValue []byte
-	var exists bool
-
-	var curpfx [][]byte
-	//curpfx = append(curpfx, fullTextPrefix)
-
-	for _, field := range fulltext {
-		// 获取字段的实际值
-		fieldValue, exists = (*fieldsBytes)[field]
-		if !exists {
-			continue // 跳过不存在的字段
-		}
-		//该字段是否是全文索引字段
-		isFullTextField := slices.Contains(t.fullText, field)
-		switch isFullTextField {
-		case true: // 全文索引字段
-			// 将字段值转换为字符串，全文索引只支持字符串
-			fieldStr := string(fieldValue)
-			// 对字段值进行分词
-			if t.ftlen == 0 {
-				t.ftlen = 5
-			}
-			tokens := t.GetFullTextToken(fieldStr, int(t.ftlen))
-			for _, token := range tokens {
-				if token == "" {
-					continue
-				}
-				curpfx = append(curpfx, bytes.Join([][]byte{fullTextPrefix, []byte(token)}, []byte(SPLIT)))
-			}
-		case false: // 普通索引字段
-			curpfx = append(curpfx, bytes.Join([][]byte{fullTextPrefix, fieldValue}, []byte(SPLIT)))
-		}
-		//返回结果是否为空
-		isnil := r == nil
-		switch isnil {
-		case true:
-			r = append(r, append([][]byte{}, curpfx...)...)
-		case false: // 拼接当前索引前缀到结果中,一对多和多对一关系，多对多已经过滤，属于非法。
-			for i, idx := range r {
-				for _, pfx := range curpfx {
-					var tidx []byte
-					tidx = append(tidx, append([]byte{}, idx...)...)
-					var tpfx []byte
-					tpfx = append(tpfx, append([]byte{}, pfx...)...)
-					tidx = bytes.Join([][]byte{tidx, tpfx}, []byte{})
-					r[i] = tidx
-				}
-			}
-		}
-		curpfx = curpfx[:0]
-		fullTextPrefix = fullTextPrefix[:0]
-	}
-	return
-}
-
 // 获取索引值
 // 匹配字段matchesfield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) GetIndexkeys(fieldsBytes *map[string][]byte, indexs []string, matchesfield ...string) (r []byte) {
-	indexPrefix := []byte(t.GetIndexPrefix())
-	var exists bool
-	var fieldValue []byte
-	//idxbyte := indexPrefix
-
-	for _, index := range indexs {
-		// 获取字段值
-		fieldValue, exists = (*fieldsBytes)[index]
-		// 如果字段不存在或值为nil，跳过该索引
-		if !exists || fieldValue == nil {
-			break
-		}
-		indexPrefix = bytes.Join([][]byte{indexPrefix, fieldValue}, []byte(SPLIT))
-		// 索引值不能超过255字节
-		if len(indexPrefix) >= 256 {
-			indexPrefix = indexPrefix[:255]
-		}
-		r = bytes.Join([][]byte{r, indexPrefix}, []byte{})
-	}
-	return
-}
-
-// 获取索引值
-// 匹配字段matchesfield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) GetIndexsPrefix11111(fieldsBytes *map[string][]byte, matchesfield ...string) [][]byte {
+func (t *Table) GetIndexsPrefix(fieldsBytes *map[string][]byte, matchesfield ...string) [][]byte {
 	indexValues := make([][]byte, 0, len(t.index))
 	indexPrefix := []byte(t.GetIndexPrefix())
 	var exists bool
@@ -299,7 +244,7 @@ func (t *Table) GetIndexsPrefix11111(fieldsBytes *map[string][]byte, matchesfiel
 // 获取全文索引值
 // 只支持字符串类型的全文索引，其他类型的字段值会被转换为字符串。
 // 匹配字段matchesfield ，用于记录修改某个字段时，只需要更新该字段的全文索引即可。
-func (t *Table) GetFullTextsPrefix11111(fieldsBytes *map[string][]byte, matchesfield ...string) [][]byte {
+func (t *Table) GetFullTextsPrefix(fieldsBytes *map[string][]byte, matchesfield ...string) [][]byte {
 	fullTextValues := make([][]byte, 0, len(t.fullText))
 	if t.ftlen == 0 {
 		t.ftlen = 5
@@ -435,25 +380,8 @@ func (t *Table) RecordKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, p
 
 // put索引KV
 // 匹配字段ufield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) IndexsKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
-	idxs := t.GetKeys(fieldsBytes, ufield...)
-	value := (*fieldsBytes)[t.primary]
-	if len(value) == 0 {
-		fmt.Printf("主键 '%s' 的值为空，无法创建索引\n", t.primary)
-	}
-	for _, idx := range idxs {
-		if put {
-			batch.Put(idx, value)
-		} else {
-			batch.Delete(idx)
-		}
-	}
-}
-
-// put索引KV
-// 匹配字段ufield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) IndexKV11111(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
-	idxs := t.GetIndexsPrefix11111(fieldsBytes, ufield...)
+func (t *Table) IndexKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
+	idxs := t.GetIndexsPrefix(fieldsBytes, ufield...)
 	value := (*fieldsBytes)[t.primary]
 	if len(value) == 0 {
 		fmt.Printf("主键 '%s' 的值为空，无法创建索引\n", t.primary)
@@ -469,8 +397,8 @@ func (t *Table) IndexKV11111(fieldsBytes *map[string][]byte, batch *leveldb.Batc
 
 // put全文索引KV
 // 匹配字段ufield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
-func (t *Table) FullTextKV11111(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
-	idxs := t.GetFullTextsPrefix11111(fieldsBytes, ufield...)
+func (t *Table) FullTextKV(fieldsBytes *map[string][]byte, batch *leveldb.Batch, put bool, ufield ...string) {
+	idxs := t.GetFullTextsPrefix(fieldsBytes, ufield...)
 	value := (*fieldsBytes)[t.primary]
 	if len(value) == 0 {
 		fmt.Printf("主键 '%s' 的值为空，无法创建索引\n", t.primary)
@@ -513,7 +441,7 @@ func (t *Table) FieldsToBytes(fields *map[string]any) map[string][]byte {
 }
 
 // 插入记录
-func (t *Table) Insert(fields *map[string]any, batchs ...*leveldb.Batch) (currentID int, err error) {
+func (t *Table) Insert(fields *map[string]any) (currentID int, err error) {
 	if t.fields == nil {
 		return 0, fmt.Errorf("表 '%s' 未设置字段和类型", t.name)
 	}
@@ -536,30 +464,24 @@ func (t *Table) Insert(fields *map[string]any, batchs ...*leveldb.Batch) (curren
 	}
 	// 转换字段为字节数组
 	fieldsBytes := t.FieldsToBytes(fields)
-	var batch *leveldb.Batch
-	if len(batchs) > 0 { //用户手动控制事务
-		batch = batchs[0]
-	} else {
-		batch = GlobalBatchPool.Get()
-		defer func() {
-			GlobalBatchPool.Put(batch)
-		}()
-	}
+
+	batch := Batch.Get().(*leveldb.Batch)
+	defer func() {
+		batch.Reset()    // 清空 batch 内容
+		Batch.Put(batch) // 放回对象池
+	}()
 	t.RecordKV(&fieldsBytes, batch, true)
-	t.IndexsKV(&fieldsBytes, batch, true)
-	//t.IndexKV(&fieldsBytes, batch, true)
-	//t.FullTextKV(&fieldsBytes, batch, true)
-	if len(batchs) == 0 { //用户未手动控制事务，自动提交
-		err = t.rsdb.Db.Write(batch, nil)
-		if err != nil {
-			return 0, err
-		}
+	t.IndexKV(&fieldsBytes, batch, true)
+	t.FullTextKV(&fieldsBytes, batch, true)
+	err = t.rsdb.Db.Write(batch, nil)
+	if err != nil {
+		return 0, err
 	}
 	return currentID, nil
 }
 
 // 删除记录
-func (t *Table) Delete(fields *map[string]any, batchs ...*leveldb.Batch) error {
+func (t *Table) Delete(fields *map[string]any) error {
 	if t.fields == nil {
 		return fmt.Errorf("表 '%s' 未设置字段和类型", t.name)
 	}
@@ -574,30 +496,23 @@ func (t *Table) Delete(fields *map[string]any, batchs ...*leveldb.Batch) error {
 	}
 	// 转换字段为字节数组
 	fieldsBytes := t.FieldsToBytes(fields)
-	var batch *leveldb.Batch
-	if len(batchs) > 0 { //用户手动控制事务
-		batch = batchs[0]
-	} else {
-		batch = GlobalBatchPool.Get()
-		defer func() {
-			GlobalBatchPool.Put(batch) // 放回对象池
-		}()
-	}
+	batch := Batch.Get().(*leveldb.Batch)
+	defer func() {
+		batch.Reset()    // 清空 batch 内容
+		Batch.Put(batch) // 放回对象池
+	}()
 	t.RecordKV(&fieldsBytes, batch, false)
-	t.IndexsKV(&fieldsBytes, batch, false)
-	//t.IndexKV(&fieldsBytes, batch, false)
-	//t.FullTextKV(&fieldsBytes, batch, false)
-	if len(batchs) == 0 { //用户未手动控制事务，自动提交
-		err := t.rsdb.Db.Write(batch, nil)
-		if err != nil {
-			return err
-		}
+	t.IndexKV(&fieldsBytes, batch, false)
+	t.FullTextKV(&fieldsBytes, batch, false)
+	err := t.rsdb.Db.Write(batch, nil)
+	if err != nil {
+		return err
 	}
 	return nil
 }
 
 // 更新记录
-func (t *Table) Update(fields *map[string]any, batchs ...*leveldb.Batch) error {
+func (t *Table) Update(fields *map[string]any) error {
 	if t.fields == nil {
 		return fmt.Errorf("表 '%s' 未设置字段和类型", t.name)
 	}
@@ -619,31 +534,25 @@ func (t *Table) Update(fields *map[string]any, batchs ...*leveldb.Batch) error {
 	if currentFields == nil {
 		return fmt.Errorf("主键值 '%v' 的记录不存在", primaryValue)
 	}
-	var batch *leveldb.Batch
-	if len(batchs) > 0 { //用户手动控制事务
-		batch = batchs[0]
-	} else {
-		batch = GlobalBatchPool.Get()
-		defer func() {
-			GlobalBatchPool.Put(batch) // 清空并放回对象池
-		}()
-	}
+	batch := Batch.Get().(*leveldb.Batch)
+	defer func() {
+		batch.Reset()    // 清空 batch 内容
+		Batch.Put(batch) // 放回对象池
+	}()
 	oldfieldsBytes := t.FieldsToBytes(&currentFields)
 	//获取要删除的旧索引和全文索引
-	t.IndexsKV(&oldfieldsBytes, batch, false, matchesfield...)
-	//t.FullTextKV(&oldfieldsBytes, batch, false, matchesfield...)
+	t.IndexKV(&oldfieldsBytes, batch, false, matchesfield...)
+	t.FullTextKV(&oldfieldsBytes, batch, false, matchesfield...)
 	//更新字段值
 	// 合并旧记录和新记录的字段值
 	maps.Copy(currentFields, *fields)
 	newfieldsBytes := t.FieldsToBytes(&currentFields)
 	t.RecordKV(&newfieldsBytes, batch, true)
-	t.IndexsKV(&newfieldsBytes, batch, true, matchesfield...)
-	//t.FullTextKV(&newfieldsBytes, batch, true, matchesfield...)
-	if len(batchs) == 0 { //用户未手动控制事务，自动提交
-		err := t.rsdb.Db.Write(batch, nil)
-		if err != nil {
-			return err
-		}
+	t.IndexKV(&newfieldsBytes, batch, true, matchesfield...)
+	t.FullTextKV(&newfieldsBytes, batch, true, matchesfield...)
+	err := t.rsdb.Db.Write(batch, nil)
+	if err != nil {
+		return err
 	}
 	return nil
 }

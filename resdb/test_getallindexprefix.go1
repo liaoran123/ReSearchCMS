@@ -1,0 +1,121 @@
+package resdb
+
+import (
+	"testing"
+)
+
+func TestGetAllIndexPrefix(t *testing.T) {
+	// 创建表
+	table, err := TableNew("test_index_table")
+	if err != nil {
+		t.Fatalf("创建表失败: %v", err)
+	}
+	
+	// 设置字段
+	table.SetFields(map[string]any{
+		"id":       0,
+		"name":     "",
+		"age":      0,
+		"email":    "",
+		"bio":      "",
+		"address":  "",
+		"phone":    "",
+		"website":  "",
+	})
+	
+	// 设置索引和全文索引
+	table.SetIndex([][]string{
+		{"name", "age"},     // 普通索引
+		{"email"},            // 普通索引
+		{"name", "bio"},     // 混合索引（包含全文索引字段）
+		{"bio", "address"},  // 混合索引（包含全文索引字段）
+		{"bio", "phone"},    // 混合索引（包含全文索引字段）
+	})
+	
+	// 设置全文索引
+	table.SetFullText([][]string{
+		{"bio"},              // 单字段全文索引
+		{"name", "address"}, // 组合字段全文索引
+	})
+	
+	// 创建测试数据
+	fieldsBytes := map[string][]byte{
+		"id":      []byte("1"),
+		"name":    []byte("张三"),
+		"age":     []byte("30"),
+		"email":   []byte("zhangsan@example.com"),
+		"bio":     []byte("这是张三的个人简介，用于测试全文索引功能。"),
+		"address": []byte("北京市朝阳区"),
+		"phone":   []byte("13800138000"),
+		"website": []byte("https://zhangsan.com"),
+	}
+	
+	// 测试基本功能
+	allIndexes := table.GetAllIndexPrefix(&fieldsBytes)
+	t.Logf("获取所有索引前缀: 共 %d 个", len(allIndexes))
+	for i, idx := range allIndexes {
+		t.Logf("索引 %d: %s", i+1, string(idx))
+	}
+	
+	// 验证结果数量
+	if len(allIndexes) == 0 {
+		t.Errorf("预期至少返回一个索引前缀，实际返回 %d 个", len(allIndexes))
+	}
+	
+	// 测试带匹配字段的功能
+	matchedIndexes := table.GetAllIndexPrefix(&fieldsBytes, "name", "bio")
+	t.Logf("获取匹配字段的索引前缀: 共 %d 个", len(matchedIndexes))
+	for i, idx := range matchedIndexes {
+		t.Logf("匹配索引 %d: %s", i+1, string(idx))
+	}
+	
+	// 测试只有普通索引的情况
+	table2, _ := TableNew("test_normal_index")
+	table2.SetFields(map[string]any{
+		"id":    0,
+		"name":  "",
+		"age":   0,
+		"email": "",
+	})
+	table2.SetIndex([][]string{
+		{"name", "age"},
+		{"email"},
+	})
+	table2.SetFullText([][]string{}) // 清空全文索引
+	
+	allIndexes2 := table2.GetAllIndexPrefix(&fieldsBytes)
+	t.Logf("只有普通索引时的索引前缀: 共 %d 个", len(allIndexes2))
+	
+	// 测试只有全文索引的情况
+	table3, _ := TableNew("test_fulltext_only")
+	table3.SetFields(map[string]any{
+		"id":      0,
+		"title":   "",
+		"content": "",
+	})
+	table3.SetIndex([][]string{
+		{"title", "content"}, // 混合索引（包含全文索引字段）
+	})
+	table3.SetFullText([][]string{
+		{"title"},
+		{"content"},
+	})
+	
+	allIndexes3 := table3.GetAllIndexPrefix(&fieldsBytes)
+	t.Logf("只有全文索引时的索引前缀: 共 %d 个", len(allIndexes3))
+	
+	// 测试索引匹配功能
+	field1 := []string{"name", "age"}
+	idx1, idxType1 := table.MatchIndex(field1...)
+	t.Logf("匹配普通索引 '%v': 结果: %v, 类型: %d", field1, idx1, idxType1)
+	if idxType1 != 0 {
+		t.Errorf("预期匹配普通索引（类型0），实际匹配类型: %d", idxType1)
+	}
+	
+	field2 := []string{"bio"}
+	idx2, idxType2 := table.MatchIndex(field2...)
+	t.Logf("匹配全文索引 '%v': 结果: %v, 类型: %d", field2, idx2, idxType2)
+	if idxType2 != 2 {
+		t.Errorf("预期匹配全文索引（类型2），实际匹配类型: %d", idxType2)
+	}
+}

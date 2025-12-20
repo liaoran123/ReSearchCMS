@@ -81,14 +81,14 @@ func TestFullTextFunctions(t *testing.T) {
 	// 测试设置全文索引字段
 	fields := []string{"content", "description"}
 	table.SetFullText(fields)
-	if len(table.fullText) != 2 {
-		t.Errorf("设置全文索引字段数量错误，期望: 2, 实际: %d", len(table.fullText))
+	if len(table.fullText) != 1 {
+		t.Errorf("设置全文索引字段数量错误，期望: 1, 实际: %d", len(table.fullText))
 	}
 
 	// 测试添加单个全文索引字段
 	table.AddFullTextField("title")
-	if len(table.fullText) != 3 {
-		t.Errorf("添加全文索引字段数量错误，期望: 3, 实际: %d", len(table.fullText))
+	if len(table.fullText) != 2 {
+		t.Errorf("添加全文索引字段数量错误，期望: 2, 实际: %d", len(table.fullText))
 	}
 
 	// 测试设置全文索引分词长度
@@ -232,7 +232,7 @@ func TestGetFullTextValue(t *testing.T) {
 	// 获取全文索引值
 
 	fieldsBytes := table.FieldsToBytes(&fields)
-	fullTextValues := table.GetFullTextsPrefix(&fieldsBytes)
+	fullTextValues := table.GetKeys(&fieldsBytes)
 	if len(fullTextValues) == 0 {
 		t.Error("GetFullTextsPrefix 应该返回全文索引值")
 		return
@@ -258,6 +258,7 @@ func TestGetFullTextValue(t *testing.T) {
 	}
 
 	fmt.Printf("全文索引测试: 生成了 %d 个键\n", len(fullTextValues))
+
 }
 
 // TestGetIndexValue 测试索引值生成功能
@@ -282,7 +283,7 @@ func TestGetIndexValue(t *testing.T) {
 
 	// 获取索引值
 	fieldsBytes := table.FieldsToBytes(&fields)
-	indexValues := table.GetIndexsPrefix(&fieldsBytes)
+	indexValues := table.GetKeys(&fieldsBytes)
 
 	// 验证索引值数量
 	if len(indexValues) != 2 {
@@ -529,8 +530,11 @@ func TestTableSearch(t *testing.T) {
 	table.SetFields(fields)
 
 	table.SetPrimary("id")
-	table.AddIndex([]string{"name"})
 	table.AddFullTextField("description")
+	table.AddIndex([]string{"name"})
+	table.AddIndex([]string{"name", "age"})
+	table.AddIndex([]string{"description"})
+	table.AddIndex([]string{"description", "age"})
 
 	// 插入测试数据
 	data := []map[string]any{

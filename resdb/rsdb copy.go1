@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"researchCms/config"
+	"sync"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
@@ -15,6 +16,12 @@ import (
 
 var (
 	RsDB *rsdb
+	// 建立一个共享进程池
+	Batch = sync.Pool{
+		New: func() any {
+			return new(leveldb.Batch)
+		},
+	}
 	//系统保留key，不能作为用户数据存储
 	ReservedKeys = []string{
 		"sys",   //系统表

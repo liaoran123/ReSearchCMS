@@ -65,7 +65,7 @@ func TraversePathAndReadFiles(rootPath string) error {
 			if readErr != nil {
 				return readErr
 			}
-			content += info.Name() + "\n" + content
+			content += "<" + info.Name() + ">\n" + content //可以使用"<"+关键词,指定搜索标题
 			// 调用AddArticle并检查错误
 			if err := AddArticle(currentID, info.Name(), content); err != nil {
 				fmt.Printf("插入文章 %s 失败: %v\n", info.Name(), err)
@@ -73,6 +73,7 @@ func TraversePathAndReadFiles(rootPath string) error {
 			}
 			return nil
 		})
+
 	endTime := time.Now()
 	//打印endTime
 	fmt.Printf("遍历路径 %s 结束时间: %v\n", rootPath, endTime)
@@ -87,9 +88,11 @@ func AddArticle(mid int, title, content string) error {
 	parts := re.Split(content, -1)
 	var wg sync.WaitGroup
 	// 过滤空字符串和纯空白字符串
+	secNo := 0
 	for _, part := range parts {
 		trimmed := strings.TrimSpace(part)
 		if trimmed != "" {
+			secNo++
 			wg.Add(1) //+1，外面加1
 			// 捕获当前循环变量
 			sentence := trimmed
@@ -97,10 +100,12 @@ func AddArticle(mid int, title, content string) error {
 				defer wg.Done() //-1，里面减1
 				// 插入文章到数据库
 				_, err := tables.Article.Insert(&map[string]any{
-					"mid":     mid, //文章目录ID
+					"mid":     mid,   //文章目录ID
+					"secNo":   secNo, //文章句子序号
 					"title":   title,
 					"content": sentence,
 				})
+				//fmt.Printf("secNo: %v\n", secNo)
 				if err != nil {
 					fmt.Println("插入文章失败:", err)
 				}
