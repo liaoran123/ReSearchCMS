@@ -671,7 +671,7 @@ func (t *Table) Search(fields *map[string]any) iterator.Iterator {
 	case FullTextIndex:
 		pfx = t.GetFullTextPrefix()
 	}
-	keys := []byte(pfx) //[]byte(pfx + SPLIT)
+	keys := []byte(pfx + SPLIT)
 	var val any
 	var bval []byte
 	var fval string
@@ -690,10 +690,7 @@ func (t *Table) Search(fields *map[string]any) iterator.Iterator {
 			}
 			bval = []byte(fval)
 		}
-		if len(bval) > 0 {
-			keys = bytes.Join([][]byte{[]byte(keys), bval}, []byte(SPLIT))
-		}
-		//keys = append(keys, bval...)
+		keys = append(keys, bval...)
 	}
 	return t.rsdb.GetIterator(keys)
 }

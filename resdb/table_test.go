@@ -761,3 +761,77 @@ func TestTableSearch(t *testing.T) {
 		}
 	})
 }
+
+// 测试组合主键
+func TestCompositePrimaryKeySearch(t *testing.T) {
+	table, err := TableNew("article")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
+	// 必须先为表预设字段和数据类型
+	fields := map[string]any{
+		"mid":     0,  //文章ID或目录ID
+		"secNo":   0,  //文章句子序号
+		"title":   "", //文章标题
+		"content": "", //文章内容
+	}
+	table.SetFields(fields)
+	//设置主键
+	table.SetPrimary([]string{"mid", "secNo"}) //组合主键，可以查询指定文章的所有句子
+	// 设置全文索引字段
+	table.SetFullTextField("content")
+	// 添加组合全文索引
+	//用于查询文章中包含指定关键词的句子。
+	// 同时包含文章ID和句子序号，这样当需要在指定文章或目录下查询包含关键词的句子时，就可以通过索引直接匹配，而不需要回表。
+	table.AddIndex([]string{"content", "mid", "secNo"})
+
+	table.Insert(&map[string]any{
+		"mid":     1,
+		"secNo":   1,
+		"title":   "文章标题11",
+		"content": "文章内容11",
+	})
+	table.Insert(&map[string]any{
+		"mid":     1,
+		"secNo":   2,
+		"title":   "文章标题12",
+		"content": "文章内容12",
+	})
+	table.Insert(&map[string]any{
+		"mid":     2,
+		"secNo":   1,
+		"title":   "文章标题21",
+		"content": "文章内容21",
+	})
+	table.Insert(&map[string]any{
+		"mid":     2,
+		"secNo":   2,
+		"title":   "文章标题22",
+		"content": "文章内容22",
+	})
+	// 搜索指定文章的所有句子
+	fields1 := map[string]any{
+		"mid":   2,   // id=nil或空，将获取所有表记录
+		"secNo": nil, // id=nil或空，将获取所有表记录
+	}
+	iter := table.For()
+	for iter.Next() {
+		//打印iter.Key()
+		fmt.Printf("iter.Key(): %v\n", iter.Key())
+		fmt.Printf("iter.Key(): %v\n", string(iter.Key()))
+		//打印iter.Value()
+		fmt.Printf("iter.Value(): %v\n", iter.Value())
+		fmt.Printf("iter.Value(): %v\n", string(iter.Value()))
+	}
+
+	dataIter := table.SearchToDataIter(&fields1)
+	if dataIter.iter == nil {
+		t.Fatalf("SearchToDataIter 失败: %v", err)
+	}
+	defer dataIter.Release()
+	records := dataIter.GetRecordsByPrimary(true)
+	for i, item := range records {
+		fmt.Printf("结果集 %d: %v\n", i, item)
+	}
+
+}
