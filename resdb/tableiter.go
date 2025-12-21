@@ -111,18 +111,8 @@ func (t *TableIter) GetRecordsByPrimary(esc bool) (r Records) {
 
 // 解析索引记录
 func (t *TableIter) parserRecordByIndex(k, v []byte) any {
-	// 确保主键字段存在
-	pytype, exists := t.table.fields[t.table.primary[0]]
-	if !exists {
-		return nil
-	}
-	// 转换主键值
-	id := Bytes(v).ToAny(pytype)
-	if id == nil {
-		return nil
-	}
 	// 读取完整记录
-	byrecord := t.table.Read(id)
+	byrecord := t.table.ReadByBytes(v)
 	if byrecord == nil {
 		return nil
 	}

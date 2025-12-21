@@ -809,19 +809,19 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 		"title":   "文章标题22",
 		"content": "文章内容22",
 	})
+
 	// 搜索指定文章的所有句子
 	fields1 := map[string]any{
-		"mid":   2,   // id=nil或空，将获取所有表记录
+		"mid":   nil, // id=nil或空，将获取所有表记录
 		"secNo": nil, // id=nil或空，将获取所有表记录
 	}
+	/*
+		fields1 := map[string]any{
+			"content": "文章内容22",
+		}*/
 	iter := table.For()
 	for iter.Next() {
-		//打印iter.Key()
-		fmt.Printf("iter.Key(): %v\n", iter.Key())
-		fmt.Printf("iter.Key(): %v\n", string(iter.Key()))
-		//打印iter.Value()
-		fmt.Printf("iter.Value(): %v\n", iter.Value())
-		fmt.Printf("iter.Value(): %v\n", string(iter.Value()))
+		fmt.Printf("iter.Key(): %v,iter.Value(): %v\n", string(iter.Key()), string(iter.Value()))
 	}
 
 	dataIter := table.SearchToDataIter(&fields1)
@@ -834,4 +834,16 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 		fmt.Printf("结果集 %d: %v\n", i, item)
 	}
 
+	fields2 := map[string]any{
+		"content": "文章内容22",
+	}
+	dataIter = table.SearchToDataIter(&fields2)
+	if dataIter.iter == nil {
+		t.Fatalf("SearchToDataIter 失败: %v", err)
+	}
+	defer dataIter.Release()
+	records1 := dataIter.GetRecordsByIndex(true)
+	for i, item := range records1 {
+		fmt.Printf("全文索引结果集 %d: %v\n", i, item)
+	}
 }
