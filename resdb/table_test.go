@@ -86,7 +86,7 @@ func TestFullTextFunctions(t *testing.T) {
 	}
 
 	// 测试添加单个全文索引字段
-	table.AddFullTextField("title")
+	table.SetFullTextField("title")
 	if len(table.fullText) != 2 {
 		t.Errorf("添加全文索引字段数量错误，期望: 2, 实际: %d", len(table.fullText))
 	}
@@ -188,7 +188,7 @@ func TestAutoIncrement(t *testing.T) {
 	if table2 == nil {
 		t.Fatal("TableNew 失败")
 	}
-	table2.SetPrimary("id")
+	table2.SetPrimary([]string{"id"})
 	fields2 := table2.GetAllFields()
 	fields2["id"] = nil
 	table2.InitAuto()
@@ -220,7 +220,7 @@ func TestGetFullTextValue(t *testing.T) {
 	}
 
 	// 设置全文索引字段和主键
-	table.SetPrimary("id")
+	table.SetPrimary([]string{"id"})
 	table.SetFullText([]string{"content"})
 	table.SetFullTextLen(2) // 设置较短的分词长度便于测试
 
@@ -328,7 +328,7 @@ func TestTableRead(t *testing.T) {
 	table.SetFields(fields)
 
 	// 设置主键
-	table.SetPrimary("id")
+	table.SetPrimary([]string{"id"})
 
 	// 插入测试数据
 	currentID, err := table.Insert(&fields)
@@ -394,7 +394,7 @@ func TestTableRead(t *testing.T) {
 	fields["city"] = "Los Angeles"
 
 	// 设置字符串主键
-	table2.SetPrimary("user_id")
+	table2.SetPrimary([]string{"user_id"})
 
 	// 插入测试数据
 	_, err = table2.Insert(&fields)
@@ -425,7 +425,7 @@ func TestCRUDOperations(t *testing.T) {
 	}
 
 	// 设置主键
-	table.SetPrimary("id")
+	table.SetPrimary([]string{"id"})
 	//// 必须先为表预设字段和类型
 	// 必须先为表预设字段和数据类型
 	fields := map[string]any{"id": 0, "name": "", "age": uint8(0), "description": ""}
@@ -529,8 +529,8 @@ func TestTableSearch(t *testing.T) {
 	fields := map[string]any{"id": 0, "name": "", "age": uint8(0), "description": ""}
 	table.SetFields(fields)
 
-	table.SetPrimary("id")
-	table.AddFullTextField("description")
+	table.SetPrimary([]string{"id"})
+	table.SetFullTextField("description")
 	table.AddIndex([]string{"name"})
 	table.AddIndex([]string{"name", "age"})
 	table.AddIndex([]string{"description"})
@@ -612,8 +612,8 @@ func TestTableSearch(t *testing.T) {
 		records := dataIter.GetRecordsByPrimary(true)
 		fmt.Printf("records: %v\n", records)
 		//判断data[0]和records是否相等
-		if records[0][table.primary] != data[0]["id"] {
-			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["id"], records[0][table.primary])
+		if records[0][table.primary[0]] != data[0]["id"] {
+			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["id"], records[0][table.primary[0]])
 		}
 		if records[0]["name"] != data[0]["name"] {
 			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["name"], records[0]["name"])
@@ -642,8 +642,8 @@ func TestTableSearch(t *testing.T) {
 		for _, item := range records {
 			fmt.Printf("records: %v\n", item)
 		}
-		if records[0][table.primary] != data[2]["id"] {
-			t.Errorf("搜索name为Charlie的记录错误，期望: %v, 实际: %v", data[2]["id"], records[0][table.primary])
+		if records[0][table.primary[0]] != data[2]["id"] {
+			t.Errorf("搜索name为Charlie的记录错误，期望: %v, 实际: %v", data[2]["id"], records[0][table.primary[0]])
 		}
 	})
 
@@ -662,8 +662,8 @@ func TestTableSearch(t *testing.T) {
 		for _, item := range records {
 			fmt.Printf("records: %v\n", item)
 		}
-		if records[0][table.primary] != data[1]["id"] {
-			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary])
+		if records[0][table.primary[0]] != data[1]["id"] {
+			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary[0]])
 		}
 		sdata := []map[string]any{
 			{"description": "古木阴阴六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
@@ -689,8 +689,8 @@ func TestTableSearch(t *testing.T) {
 			for _, item := range records {
 				fmt.Printf("搜索:%v -》 records: %v\n", fields["description"], item)
 			}
-			if records[0][table.primary] != data[0]["id"] {
-				t.Errorf("全文索引搜索 description 包含Bob的记录错误，期望: %v, 实际: %v", data[0]["id"], records[0][table.primary])
+			if records[0][table.primary[0]] != data[0]["id"] {
+				t.Errorf("全文索引搜索 description 包含Bob的记录错误，期望: %v, 实际: %v", data[0]["id"], records[0][table.primary[0]])
 			}
 			//判断data[1]和records是否相等
 		}
@@ -719,9 +719,9 @@ func TestTableSearch(t *testing.T) {
 			for _, item := range records {
 				fmt.Printf("搜索:%v -》 records: %v\n", fields["description"], item)
 			}
-			if records[0][table.primary] != data[1]["id"] {
+			if records[0][table.primary[0]] != data[1]["id"] {
 				fmt.Printf("查询结果可能是多个: %v\n。但是测试并没有错误。", records)
-				//t.Errorf("全文索引搜索 description 包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary])
+				//t.Errorf("全文索引搜索 description 包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary[0]])
 			}
 		}
 	})
@@ -740,7 +740,7 @@ func TestTableSearch(t *testing.T) {
 		records := dataIter.GetRecordsByPrimary(true)
 		//判断data[1]和records是否相等
 		if len(records) != 0 {
-			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary])
+			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary[0]])
 		}
 	})
 

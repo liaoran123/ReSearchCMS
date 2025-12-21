@@ -216,7 +216,7 @@ func (t *Table) GetFullTextKey(fieldsBytes *map[string][]byte, fulltext []string
 
 	var curpfx [][]byte
 	//curpfx = append(curpfx, fullTextPrefix)
-	var isnil bool
+
 	for _, field := range fulltext {
 		// 获取字段的实际值
 		fieldValue, exists = (*fieldsBytes)[field]
@@ -244,7 +244,7 @@ func (t *Table) GetFullTextKey(fieldsBytes *map[string][]byte, fulltext []string
 			curpfx = append(curpfx, bytes.Join([][]byte{fullTextPrefix, fieldValue}, []byte(SPLIT)))
 		}
 		//返回结果是否为空
-		isnil = r == nil
+		isnil := r == nil
 		switch isnil {
 		case true:
 			r = append(r, append([][]byte{}, curpfx...)...)
@@ -272,21 +272,40 @@ func (t *Table) GetIndexkey(fieldsBytes *map[string][]byte, indexs []string) (r 
 	indexPrefix := []byte(t.GetIndexPrefix())
 	idx := t.GetFieldJoin(fieldsBytes, indexs)
 	r = bytes.Join([][]byte{indexPrefix, idx}, []byte(SPLIT))
+	/*
+		indexPrefix := []byte(t.GetIndexPrefix())
+		var exists bool
+		var fieldValue []byte
+		//idxbyte := indexPrefix
+
+		for _, index := range indexs {
+			// 获取字段值
+			fieldValue, exists = (*fieldsBytes)[index]
+			// 如果字段不存在或值为nil，跳过该索引
+			if !exists || fieldValue == nil {
+				break
+			}
+			indexPrefix = bytes.Join([][]byte{indexPrefix, fieldValue}, []byte(SPLIT))
+			// 索引值不能超过255字节
+			if len(indexPrefix) >= 256 {
+				indexPrefix = indexPrefix[:255]
+			}
+			r = bytes.Join([][]byte{r, indexPrefix}, []byte{})
+		}*/
 	return
 }
 
 // 获取索引值
 // 匹配字段matchesfield ，用于记录修改某个字段时，只需要更新该字段的索引即可。
 func (t *Table) GetPrimarykey(fieldsBytes *map[string][]byte) (r []byte) {
-	PrimaryPrefix := []byte(t.GetPrimaryPrefix())
+	indexPrefix := []byte(t.GetPrimaryPrefix())
 	pk := t.GetFieldJoin(fieldsBytes, t.primary)
-	r = bytes.Join([][]byte{PrimaryPrefix, pk}, []byte(SPLIT))
+	r = bytes.Join([][]byte{indexPrefix, pk}, []byte{SPLIT[0]})
 	return
 }
 func (t *Table) GetFieldJoin(fieldsBytes *map[string][]byte, fields []string) (r []byte) {
 	var exists bool
 	var fieldValue []byte
-	var isnil bool
 	for _, index := range fields {
 		// 获取字段值
 		fieldValue, exists = (*fieldsBytes)[index]
@@ -294,13 +313,7 @@ func (t *Table) GetFieldJoin(fieldsBytes *map[string][]byte, fields []string) (r
 		if !exists || fieldValue == nil {
 			break
 		}
-		isnil = r == nil
-		switch isnil {
-		case true:
-			r = append(r, fieldValue...)
-		case false:
-			r = bytes.Join([][]byte{r, fieldValue}, []byte(SPLIT))
-		}
+		r = bytes.Join([][]byte{r, fieldValue}, []byte(SPLIT))
 	}
 	return r
 }

@@ -112,7 +112,7 @@ func (t *TableIter) GetRecordsByPrimary(esc bool) (r Records) {
 // 解析索引记录
 func (t *TableIter) parserRecordByIndex(k, v []byte) any {
 	// 确保主键字段存在
-	pytype, exists := t.table.fields[t.table.primary]
+	pytype, exists := t.table.fields[t.table.primary[0]]
 	if !exists {
 		return nil
 	}
