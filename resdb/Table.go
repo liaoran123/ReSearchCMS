@@ -609,17 +609,17 @@ func (t *Table) Read(primary any) []byte {
 	key.WriteString(t.GetPrimaryPrefix())
 	key.WriteString(SPLIT)
 	key.Write(pb)
-
-	v, err := t.rsdb.Db.Get(key.Bytes(), nil)
-	if err != nil {
-		// leveldb.ErrNotFound 是正常的未找到错误，不需要打印
-		if err != leveldb.ErrNotFound {
-			fmt.Printf("读取记录失败: %v\n", err)
+	/*
+		v, err := t.rsdb.Db.Get(key.Bytes(), nil)
+		if err != nil {
+			// leveldb.ErrNotFound 是正常的未找到错误，不需要打印
+			if err != leveldb.ErrNotFound {
+				fmt.Printf("读取记录失败: %v\n", err)
+			}
+			return nil
 		}
-		return nil
-	}
-
-	return v
+	*/
+	return t.ReadByBytes(key.Bytes())
 }
 
 // 从按主键数据库读取记录
