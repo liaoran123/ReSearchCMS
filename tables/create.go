@@ -46,10 +46,8 @@ func CreateTable_article() *storedb.Table {
 	table.SetPrimary([]string{"mid", "secNo"}) //组合主键，可以查询指定文章的所有句子
 	// 设置全文索引字段
 	table.SetFullTextField("content")
-	// 添加组合全文索引
-	//用于查询文章中包含指定关键词的句子。
-	// 同时包含文章ID和句子序号，这样当需要在指定文章或目录下查询包含关键词的句子时，就可以通过索引直接匹配，而不需要回表。
-	table.AddIndex([]string{"content", "mid", "secNo"})
+	// 添加全文索引
+	table.AddIndex([]string{"content"})
 
 	return table
 }
