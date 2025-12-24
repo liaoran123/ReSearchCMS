@@ -1,0 +1,68 @@
+package resdb
+
+// IndexKind 定义索引类型枚举
+type IndexKind uint8
+
+const (
+	PrimaryKeyIndex IndexKind = iota // 主键
+	NormalIndex                      // 普通索引
+	FullTextIndex                    // 全文索引
+	NoIndex                          // 无索引
+)
+
+func (it IndexKind) String() string {
+	switch it {
+	case PrimaryKeyIndex:
+		return "pk"
+	case NormalIndex:
+		return "idx"
+	case FullTextIndex:
+		return "ft"
+	case NoIndex:
+		return "no"
+	default:
+		return ""
+	}
+}
+
+// 字段索引类型
+type FieldIndexKind struct {
+	field string
+	kind  IndexKind
+}
+
+// 设置值
+func (fit *FieldIndexKind) Set(field string, kind IndexKind) {
+	fit.field = field
+	fit.kind = kind
+}
+
+//获取索引类型
+func (fit *FieldIndexKind) Kind() IndexKind {
+	return fit.kind
+}
+
+//获取索引字段
+func (fit *FieldIndexKind) Field() string {
+	return fit.field
+}
+
+type Prefix func(tbname string, indexKind IndexKind) string
+
+func DefaultPrefix(tbname string, indexKind IndexKind) string {
+	return tbname + SPLIT + indexKind.String() + SPLIT
+}
+
+type Index struct {
+	data [][]FieldIndexKind // 主键字段列表，单主键长度为1，组合主键长度>1
+}
+
+//添加索引
+func (is *Index) Add(indexType FieldIndexKind) {
+	is.data = append(is.data, []FieldIndexKind{indexType})
+}
+
+//获取前缀
+func (is *Index) GetPrefix(prefix Prefix, tbname string, indexKind IndexKind) string {
+	return prefix(tbname, indexKind)
+}

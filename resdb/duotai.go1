@@ -1,0 +1,64 @@
+package resdb
+
+// 定义接口：数据源
+type DataSource interface {
+	Open() error
+	Close() error
+	Read() ([]byte, error)
+}
+
+// 基础结构体：文件数据源
+type FileDataSource struct {
+	Path string
+}
+
+func (f *FileDataSource) Open() error {
+	// 模拟打开文件
+	return nil
+}
+
+func (f *FileDataSource) Close() error {
+	// 模拟关闭文件
+	return nil
+}
+
+func (f *FileDataSource) Read() ([]byte, error) {
+	// 模拟读取文件内容
+	return []byte("file data"), nil
+}
+
+// 继承并扩展：加密文件数据源
+type EncryptedFileDataSource struct {
+	FileDataSource        // 继承 FileDataSource
+	EncryptionKey  string // 新增字段
+}
+
+// 重写 Read 方法，体现多态
+func (e *EncryptedFileDataSource) Read() ([]byte, error) {
+	// 先调用父类方法
+	data, err := e.FileDataSource.Read()
+	if err != nil {
+		return nil, err
+	}
+	// 模拟解密（简单异或示例）
+	for i := range data {
+		data[i] ^= e.EncryptionKey[0]
+	}
+	return data, nil
+}
+
+// 使用示例函数
+func ExampleUsage() {
+	var ds DataSource
+
+	// 多态：基类指针指向子类对象
+	ds = &EncryptedFileDataSource{
+		FileDataSource: FileDataSource{Path: "/tmp/data.enc"},
+		EncryptionKey:  "key123",
+	}
+
+	_ = ds.Open()
+	data, _ := ds.Read()
+	_ = ds.Close()
+	_ = data
+}

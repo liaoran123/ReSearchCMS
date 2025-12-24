@@ -5,6 +5,8 @@ package resdb
 import (
 	"bytes"
 	"fmt"
+	"maps"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -151,7 +153,6 @@ func (t *Table) GetFullTextPrefix() string {
 	return t.name + SPLIT + "ft" //+ SPLIT
 }
 
-/*
 // 检测索引索引，并且返回类型枚举
 func (t *Table) MatchIndex(indexs []string) *Indexs {
 	idxlen := len(indexs)
@@ -205,7 +206,7 @@ func (t *Table) MatchIndex(indexs []string) *Indexs {
 	return idxs
 }
 
-
+/*
 
 // 检测索引索引，并且返回类型枚举
 func (t *Table) MatchIndex(indexs []string) *Indexs {
@@ -243,7 +244,7 @@ func (t *Table) MatchIndex(indexs []string) *Indexs {
 	return idxs
 }
 
-
+*/
 
 // GetAllIndexPrefix 获取所有索引前缀，包括普通索引和全文索引
 func (t *Table) GetKeys(fieldsBytes *map[string][]byte, matchesfield ...string) (keys [][]byte) {
@@ -687,10 +688,10 @@ func (t *Table) Read(primary any) []byte {
 			}
 			return nil
 		}
-
+	*/
 	return t.ReadByBytes(key.Bytes())
 }
-*/
+
 // 从按主键数据库读取记录
 func (t *Table) ReadByBytes(key []byte) []byte {
 	key = bytes.Join([][]byte{[]byte(t.GetPrimaryPrefix()), key}, []byte(SPLIT))
@@ -736,7 +737,6 @@ func (t *Table) ForData() iterator.Iterator {
 	return t.rsdb.GetIterator([]byte(pfx))
 }
 
-/*
 // 根据字段名和值搜索返回数据迭代器
 // 缓存迭代器，避免每次for都重新创建迭代器
 func (t *Table) Search(fields *map[string]any) (iterator.Iterator, *Indexs, error) {
@@ -794,4 +794,3 @@ func (t *Table) SearchToDataIter(fields *map[string]any) *TableIter {
 	}
 	return TableIterNew(t, iter, indexs)
 }
-*/

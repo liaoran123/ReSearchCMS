@@ -2,12 +2,11 @@ package main
 
 import (
 	"fmt"
-	"researchCms/files"
 )
 
 func main() {
 	fmt.Println("考据级文档搜索引擎!免费版有广告，付费版无广告，企业版提供多维分析统计功能。")
-	files.TraversePathAndReadFiles("D:\\MyGo\\src\\sfsApp\\qldzj")
+	//files.TraversePathAndReadFiles("D:\\MyGo\\src\\sfsApp\\qldzj")
 	/*
 		files.TraversePathAndReadFiles("E:\\书")
 		iter := tables.Dir.ForData()

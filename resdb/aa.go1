@@ -1,0 +1,129 @@
+package resdb
+
+import (
+	"context"
+	"encoding/json"
+	"log"
+	"net/http"
+	"time"
+
+	"github.com/gorilla/mux"
+)
+
+// 常用Handler示例
+// 示例1：基础查询处理器
+func QueryHandler(w http.ResponseWriter, r *http.Request) {
+	// 解析查询参数
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		http.Error(w, "缺少查询参数", http.StatusBadRequest)
+		return
+	}
+
+	// 执行查询逻辑（示例）
+	result := map[string]string{"query": query, "status": "success"}
+
+	// 返回JSON响应
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(result)
+}
+
+// 示例2：带路径参数的处理器
+func ItemHandler(w http.ResponseWriter, r *http.Request) {
+	// 提取路径参数
+	vars := mux.Vars(r)
+	id := vars["id"]
+
+	// 模拟数据库查询
+	item, err := getItemByID(id)
+	if err != nil {
+		http.Error(w, "未找到资源", http.StatusNotFound)
+		return
+	}
+
+	// 返回结果
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(item)
+}
+
+// 示例3：POST请求处理器（带验证）
+func CreateHandler(w http.ResponseWriter, r *http.Request) {
+	// 解析请求体
+	var req CreateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "无效的请求体", http.StatusBadRequest)
+		return
+	}
+
+	// 参数验证
+	if req.Name == "" || req.Age <= 0 {
+		http.Error(w, "参数验证失败", http.StatusBadRequest)
+		return
+	}
+
+	// 创建资源
+	newID, err := createItem(req)
+	if err != nil {
+		http.Error(w, "创建失败", http.StatusInternalServerError)
+		return
+	}
+
+	// 返回创建结果
+	resp := map[string]interface{}{
+		"id":      newID,
+		"message": "创建成功",
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(resp)
+}
+
+// 示例4：统一错误处理中间件
+func ErrorMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		defer func() {
+			if err := recover(); err != nil {
+				// 记录错误日志
+				log.Printf("处理请求时发生panic: %v", err)
+
+				// 返回统一错误响应
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(map[string]string{
+					"error": "内部服务器错误",
+				})
+			}
+		}()
+
+		next(w, r)
+	}
+}
+
+// 示例5：带超时的处理器
+func TimeoutHandler(duration time.Duration) func(http.HandlerFunc) http.HandlerFunc {
+	return func(next http.HandlerFunc) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			ctx, cancel := context.WithTimeout(r.Context(), duration)
+			defer cancel()
+
+			// 创建新的请求对象，使用带超时的context
+			r = r.WithContext(ctx)
+
+			// 执行处理函数
+			done := make(chan struct{})
+			go func() {
+				next(w, r)
+				close(done)
+			}()
+
+			// 等待完成或超时
+			select {
+			case <-done:
+				// 正常完成
+			case <-ctx.Done():
+				// 超时处理
+				http.Error(w, "请求超时", http.StatusRequestTimeout)
+			}
+		}
+	}
+}

@@ -5,6 +5,8 @@ package resdb
 import (
 	"bytes"
 	"fmt"
+	"maps"
+	"reflect"
 	"slices"
 	"strings"
 
@@ -151,62 +153,6 @@ func (t *Table) GetFullTextPrefix() string {
 	return t.name + SPLIT + "ft" //+ SPLIT
 }
 
-/*
-// 检测索引索引，并且返回类型枚举
-func (t *Table) MatchIndex(indexs []string) *Indexs {
-	idxlen := len(indexs)
-	if idxlen == 0 {
-		return nil
-	}
-	idxs := new(Indexs)
-	idxs.fields = indexs
-	indexCount := 0
-	//判断是否符合主键索引
-	for _, field := range t.primary {
-		if slices.Contains(indexs, field) {
-			indexCount++
-		}
-	}
-	if indexCount == len(indexs) {
-		idxs.kind = PrimaryKeyIndex
-		return idxs
-	}
-
-	for _, idx := range t.index {
-		indexCount = 0
-		for _, field := range idx {
-			if slices.Contains(indexs, field) {
-				indexCount++
-				if indexCount == len(indexs) {
-					break
-				}
-			}
-		}
-		//判断是否符合普通索引
-		if indexCount == len(indexs) {
-			//判断是否符合全文索引
-			indexCount = 0
-			for _, field := range indexs {
-				if slices.Contains(t.fullText, field) {
-					indexCount++
-					break
-				}
-			}
-			if indexCount > 0 {
-				idxs.kind = FullTextIndex
-				return idxs
-			} else {
-				idxs.kind = NormalIndex
-				return idxs
-			}
-		}
-	}
-	idxs.kind = NoIndex
-	return idxs
-}
-
-
-
 // 检测索引索引，并且返回类型枚举
 func (t *Table) MatchIndex(indexs []string) *Indexs {
 	idxs := new(Indexs)
@@ -242,8 +188,6 @@ func (t *Table) MatchIndex(indexs []string) *Indexs {
 	}
 	return idxs
 }
-
-
 
 // GetAllIndexPrefix 获取所有索引前缀，包括普通索引和全文索引
 func (t *Table) GetKeys(fieldsBytes *map[string][]byte, matchesfield ...string) (keys [][]byte) {
@@ -687,10 +631,10 @@ func (t *Table) Read(primary any) []byte {
 			}
 			return nil
 		}
-
+	*/
 	return t.ReadByBytes(key.Bytes())
 }
-*/
+
 // 从按主键数据库读取记录
 func (t *Table) ReadByBytes(key []byte) []byte {
 	key = bytes.Join([][]byte{[]byte(t.GetPrimaryPrefix()), key}, []byte(SPLIT))
@@ -736,7 +680,6 @@ func (t *Table) ForData() iterator.Iterator {
 	return t.rsdb.GetIterator([]byte(pfx))
 }
 
-/*
 // 根据字段名和值搜索返回数据迭代器
 // 缓存迭代器，避免每次for都重新创建迭代器
 func (t *Table) Search(fields *map[string]any) (iterator.Iterator, *Indexs, error) {
@@ -751,14 +694,12 @@ func (t *Table) Search(fields *map[string]any) (iterator.Iterator, *Indexs, erro
 	idxType := t.MatchIndex(field)
 	pfx := ""
 	switch idxType.kind {
-	case PrimaryKeyIndex: //主键索引
+	case PrimaryKeyIndex:
 		pfx = t.GetPrimaryPrefix()
-	case NormalIndex: //普通索引
+	case NormalIndex:
 		pfx = t.GetIndexPrefix()
-	case FullTextIndex: //全文索引
+	case FullTextIndex:
 		pfx = t.GetFullTextPrefix()
-	case NoIndex: //没有索引则全表扫描
-		pfx = t.name + SPLIT
 	}
 	keys := []byte(pfx) //[]byte(pfx + SPLIT)
 	var val any
@@ -782,6 +723,7 @@ func (t *Table) Search(fields *map[string]any) (iterator.Iterator, *Indexs, erro
 		if len(bval) > 0 {
 			keys = bytes.Join([][]byte{[]byte(keys), bval}, []byte(SPLIT))
 		}
+		//keys = append(keys, bval...)
 	}
 	return t.rsdb.GetIterator(keys), idxType, nil
 }
@@ -794,4 +736,3 @@ func (t *Table) SearchToDataIter(fields *map[string]any) *TableIter {
 	}
 	return TableIterNew(t, iter, indexs)
 }
-*/

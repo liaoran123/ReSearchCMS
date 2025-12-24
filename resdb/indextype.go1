@@ -1,5 +1,7 @@
 package resdb
 
+import "strings"
+
 // IndexKind 定义索引类型枚举
 type IndexKind int
 
@@ -7,6 +9,7 @@ const (
 	PrimaryKeyIndex IndexKind = iota // 主键
 	NormalIndex                      // 普通索引
 	FullTextIndex                    // 全文索引
+	NoIndex                          // 无索引
 )
 
 // 主键结构体
@@ -17,11 +20,11 @@ type Indexs struct {
 
 // 实现 IndexType 接口
 func (pk *Indexs) Name() string {
-	r := ""
+	var r strings.Builder
 	for _, field := range pk.fields {
-		r += field + ","
+		r.WriteString(field + ",")
 	}
-	return r
+	return r.String()
 }
 func (pk *Indexs) Kind() IndexKind {
 	return pk.kind
