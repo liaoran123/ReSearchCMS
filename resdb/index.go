@@ -169,7 +169,9 @@ func DefaultJoinIndexValue(fieldsBytes *map[string][]byte, fieldIndexKind []*Fie
 	if len(pfx) > 0 {
 		Pfx = strings.Join(pfx, SPLIT)
 	}
-	indexValue = bytes.Join([][]byte{[]byte(Pfx), indexValue}, []byte(nil))
+	if Pfx != "" {
+		indexValue = bytes.Join([][]byte{[]byte(Pfx), indexValue}, []byte(SPLIT))
+	}
 	return indexValue
 }
 
@@ -407,12 +409,6 @@ func (is *Indexs) Joins(fieldsBytes *map[string][]byte, pfx string, ufield ...st
 			indexValues = idx.FullTextJoinValue(fieldsBytes, pkpfx)
 			fulltextvalue := indexValues.([][]byte)
 			rs.OtherValues = append(rs.OtherValues, append([][]byte(nil), fulltextvalue...)...)
-			/*
-				// 全文索引值拼接，添加索引前缀
-				for _, v := range fulltextvalue {
-					pv := bytes.Join([][]byte{[]byte(pkpfx), v}, []byte(SPLIT))
-					rs.OtherValues = append(rs.OtherValues, append([]byte(nil), pv...))
-				}*/
 			continue
 
 		case *NormalIndex:
