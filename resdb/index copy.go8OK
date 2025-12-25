@@ -7,11 +7,21 @@ import (
 	"strings"
 )
 
+/*
+// ------------------------------------------
+// 定义各个索引的前缀
+type Prefix func(indexkind string) string
+
+func DefaultPrefix(indexkind string) string {
+	return indexkind // + SPLIT
+}
+*/
 // ------------------------------------------
 
 // 定义索引类型接口
 type IndexKind interface {
 	Name() string
+	//Prefix(prefix Prefix, tbname string) string
 }
 
 // 没有索引
@@ -21,6 +31,14 @@ func (n *NoIndex) Name() string {
 	return "NoIndex"
 }
 
+/*
+func (n *NoIndex) Prefix(prefix Prefix) string {
+	return prefix(n.Name())
+}
+func (n *NoIndex) DefaultPrefix() string {
+	return ""
+}
+*/
 // 主键索引
 type Primary struct{}
 
@@ -28,6 +46,14 @@ func (p *Primary) Name() string {
 	return "Primary"
 }
 
+/*
+func (p *Primary) Prefix(prefix Prefix, tbname string) string {
+	return prefix(tbname, p.Name())
+}
+func (p *Primary) DefaultPrefix(tbname string) string {
+	return DefaultPrefix(tbname, p.Name())
+}
+*/
 // 普通索引
 type NormalIndex struct{}
 
@@ -242,18 +268,18 @@ func DefaultJoinFullTextIndexValue(fieldsBytes *map[string][]byte, fieldIndexKin
 // ------------------------------------------
 // 索引的结构体
 type Index struct {
-	set       []*FieldIndexKind // 主键字段列表，单主键长度为1，组合主键长度>1
-	indexKind IndexKind         //可以手动设置索引类型，如果没有手动设置，则根据断言索引类型函数自动设置
-	prefix    string            //索引前缀
-	//AssertIndexKind        AssertIndexKind   //通过AssertIndexKind断言索引类型，返回IndexKind
-	NormalIndexJoinValue   JoinIndexValue //普通索引值拼接函数
-	FullTextIndexJoinValue JoinIndexValue //全文索引值拼接函数
+	set                    []*FieldIndexKind // 主键字段列表，单主键长度为1，组合主键长度>1
+	indexKind              IndexKind         //可以手动设置索引类型，如果没有手动设置，则根据断言索引类型函数自动设置
+	prefix                 string            //索引前缀
+	AssertIndexKind        AssertIndexKind   //通过AssertIndexKind断言索引类型，返回IndexKind
+	NormalIndexJoinValue   JoinIndexValue    //普通索引值拼接函数
+	FullTextIndexJoinValue JoinIndexValue    //全文索引值拼接函数
 }
 
 func IndexNewDefault(fieldIndexKind []*FieldIndexKind) *Index {
 	return &Index{
-		set: fieldIndexKind,
-		//AssertIndexKind:        DefaultAssertIndexKind,
+		set:                    fieldIndexKind,
+		AssertIndexKind:        DefaultAssertIndexKind,
 		indexKind:              nil,
 		NormalIndexJoinValue:   DefaultJoinIndexValue,
 		FullTextIndexJoinValue: DefaultJoinFullTextIndexValue,
@@ -261,14 +287,12 @@ func IndexNewDefault(fieldIndexKind []*FieldIndexKind) *Index {
 }
 
 // 判断索引是何种类型,主键，普通索引，全文索引
-// 默认为第一个索引字段默认，可以合适大部分业务场景，只有特殊场景才需要手动设置索引类型
-func (idx *Index) GetIndexKind(fieldIndexKind []*FieldIndexKind) IndexKind {
+func (idx *Index) GetIndexKind(fieldIndexKind []*FieldIndexKind) *IndexKind {
 	if idx.indexKind != nil {
-		return idx.indexKind
+		return &idx.indexKind
 	}
-	//idx.indexKind = idx.AssertIndexKind(fieldIndexKind)
-	idx.indexKind = idx.set[0].indexKind
-	return idx.indexKind
+	idx.indexKind = idx.AssertIndexKind(fieldIndexKind)
+	return &idx.indexKind
 }
 func (idx *Index) Name() string {
 	fields := make([]string, 0, len(idx.set))
@@ -287,15 +311,10 @@ func (idx *Index) SetPrefix(prefix string) {
 }
 
 // 获取索引前缀
-// 默认使用第一个字段的索引类型名称作为索引前缀，基本上大部分业务场景都可以满足需求
-// 如果业务场景有特殊需求，则可以手动设置索引前缀
+// 默认使用第一个字段的索引类型名称作为索引前缀
 func (idx *Index) Prefix() string {
 	if idx.prefix == "" {
-		if idx.indexKind == nil {
-			idx.prefix = idx.set[0].indexKind.Name()
-		} else {
-			idx.prefix = idx.indexKind.Name()
-		}
+		idx.prefix = idx.set[0].indexKind.Name()
 	}
 	return idx.prefix
 }
@@ -314,8 +333,8 @@ func (idx *Index) FullTextJoinValue(fieldsBytes *map[string][]byte, fields ...st
 
 // 索引集的结构体
 type Indexs struct {
-	set           []*Index          // 主键字段列表，单主键长度为1，组合主键长度>1
-	primaryFields []*FieldIndexKind // 主键字段列表，单主键长度为1，组合主键长度>1
+	set           []*Index // 主键字段列表，单主键长度为1，组合主键长度>1
+	primaryFields []*FieldIndexKind
 }
 
 // 主键必须先添加，才能优先匹配主键
@@ -328,11 +347,8 @@ func (is *Indexs) PrimaryFields() []*FieldIndexKind {
 		return is.primaryFields
 	}
 	for _, idx := range is.set {
-		kind := idx.GetIndexKind(idx.set)
-		// 检查索引类型是否为Primary
-		if _, ok := kind.(*Primary); ok {
+		if (*idx.GetIndexKind(idx.set)).Name() == "Primary" {
 			is.primaryFields = idx.set
-			break // 找到主键索引后直接返回
 		}
 	}
 	return is.primaryFields
@@ -356,15 +372,21 @@ func (is *Indexs) Match(fields []string) []*FieldIndexKind {
 	return nil
 }
 
+type IndexJoinValue struct {
+	PrimaryLen     int
+	PrimaryIDValue []byte
+	PrimaryValue   []byte
+	OtherValues    [][]byte
+}
+
 // 数据库的添加，删除，修改等操作
 // 匹配字段ufield ，用于记录修改某个字段时，只需要处理这些字段的索引即可。
 // ins 表示是否是插入操作，true 表示put操作，false 表示delete操作。
-func (is *Indexs) Joins(fieldsBytes *map[string][]byte, ufield ...string) (rs *IndexJoinValue) {
-	rs = DefaultIndexJoinValuePool.Get()
+func (is *Indexs) Joins(fieldsBytes *map[string][]byte, ufield ...string) (rs IndexJoinValue) {
 	// 遍历索引集
 	var indexValue any
 	var indexValues any
-	var indexKind IndexKind
+	var indexKind *IndexKind
 
 	for _, idx := range is.set {
 		for _, fik := range idx.set {
@@ -380,15 +402,15 @@ func (is *Indexs) Joins(fieldsBytes *map[string][]byte, ufield ...string) (rs *I
 		}
 		pkpfx := idx.Prefix()
 		indexKind = idx.GetIndexKind(idx.set)
-		switch indexKind.(type) {
-		case *Primary:
+		switch (*indexKind).Name() {
+		case "Primary":
 			indexValue = idx.IndexJoinValue(fieldsBytes, fields...)
 			rs.PrimaryIDValue = indexValue.([]byte)
 			// 添加索引前缀
 			rs.PrimaryValue = bytes.Join([][]byte{[]byte(pkpfx), rs.PrimaryIDValue}, []byte(SPLIT))
 			rs.PrimaryLen = len(idx.set)
 
-		case *FullTextIndex:
+		case "FullText":
 			indexValues = idx.FullTextJoinValue(fieldsBytes, fields...)
 			fulltextvalue := indexValues.([][]byte)
 			// 全文索引值拼接，添加索引前缀
@@ -398,15 +420,16 @@ func (is *Indexs) Joins(fieldsBytes *map[string][]byte, ufield ...string) (rs *I
 			}
 			continue
 
-		case *NormalIndex:
+		case "Normal":
 			indexValue = idx.IndexJoinValue(fieldsBytes, fields...)
 			// 添加索引前缀
 			rs.OtherValues = append(rs.OtherValues, append([]byte(nil), bytes.Join([][]byte{[]byte(pkpfx), indexValue.([]byte)}, []byte(SPLIT))...))
-		case *NoIndex:
+		case "NoIndex":
 			rs.OtherValues = append(rs.OtherValues, nil)
 		default:
 			continue
 		}
+
 	}
 	fmt.Printf("rs.PrimaryLen: %v\n", rs.PrimaryLen)
 	fmt.Printf("rs.PrimaryValue: %v\n", string(rs.PrimaryValue))

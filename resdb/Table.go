@@ -522,21 +522,22 @@ func (t *Table) Insert(fields *map[string]any, batchs ...*leveldb.Batch) (curren
 	}
 	//当前自动增值的值
 	currentID = -1
-	//是否支持默认自动增值主键
-	supportDefault := len(t.indexs.PrimaryFields()) == 1 && t.indexs.PrimaryFields()[0].Field() == "id"
+	//是否支持默认自动增值主键，单主键并且主键字段名为"id"
+	pkfield := t.indexs.PrimaryFields()[0].Field()
+	supportDefault := len(t.indexs.PrimaryFields()) == 1 && pkfield == "id"
 	if supportDefault {
 		// 检查是否提供了主键字段
 		//使用默认自动增值主键时，不需要提供主键字段，系统自动生成
-		_, ok := (*fields)[t.indexs.PrimaryFields()[0].Field()]
+		_, ok := (*fields)[pkfield]
 		if !ok { //未提供主键字段，自动生成主键值
 			currentID = t.GetAutoInc()
-			(*fields)[t.indexs.PrimaryFields()[0].Field()] = currentID
+			(*fields)[pkfield] = currentID
 		} else { //提供了主键字段，但是值为nil，自动生成主键值
-			if (*fields)[t.indexs.PrimaryFields()[0].Field()] == nil {
+			if (*fields)[pkfield] == nil {
 				currentID = t.GetAutoInc()
-				(*fields)[t.indexs.PrimaryFields()[0].Field()] = currentID
+				(*fields)[pkfield] = currentID
 			} else { //提供了主键字段，且值不为nil，转换为int类型
-				currentID = AnyToInt((*fields)[t.indexs.PrimaryFields()[0].Field()])
+				currentID = AnyToInt((*fields)[pkfield])
 			}
 		}
 	}
@@ -557,7 +558,8 @@ func (t *Table) Insert(fields *map[string]any, batchs ...*leveldb.Batch) (curren
 			GlobalBatchPool.Put(batch)
 		}()
 	}
-	t.indexs.Joins(&fieldsBytes)
+	rs := t.indexs.Joins(&fieldsBytes)
+	defer DefaultIndexJoinValuePool.Release(rs)
 	return currentID, nil
 }
 

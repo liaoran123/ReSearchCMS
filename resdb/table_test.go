@@ -776,18 +776,28 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 	}
 	table.SetFields(fields)
 	//定义索引类型
-	primary := new(Primary) //主键
-	//normalIndex := new(NormalIndex)     //普通索引
+	primary := new(Primary)             //主键
+	normalIndex := new(NormalIndex)     //普通索引
 	fullTextIndex := FullTextIndexNew() //全文索引
 
-	midfieldIndexKind := FieldIndexKindNew("mid", primary)                       //文章ID或目录ID为主键字段
-	secNoIndexKind := FieldIndexKindNew("secNo", primary)                        //文章句子序号为主键字段
+	midfieldIndexKind := FieldIndexKindNew("mid", primary)                       //定义mid主键字段
+	secNoIndexKind := FieldIndexKindNew("secNo", primary)                        //定义secNo主键字段
 	pks := IndexNewDefault([]*FieldIndexKind{midfieldIndexKind, secNoIndexKind}) //创建一个组合主键
 	table.AddIndex(pks)
 
-	contentIndexKind := FieldIndexKindNew("content", fullTextIndex)   //文章内容为全文索引字段
+	contentIndexKind := FieldIndexKindNew("content", fullTextIndex)   //定义content全文索引字段
 	contentFt := IndexNewDefault([]*FieldIndexKind{contentIndexKind}) //创建一个全文索引
 	table.AddIndex(contentFt)
+
+	//----每个字段可以在不同索引中定义为不同的索引类型，高度灵活---------------------------------------------
+	//----mid,secNo前面索引中定义为主键，这里定义为普通索引
+	//----------无用索引，只作测试---查询时由于与上面组合主键相同，只会命中组合主键，该组合索引不会被使用-----------------
+	//普通索引
+	midfieldIndexKind1 := FieldIndexKindNew("mid", normalIndex)                      //定义mid为普通索引字段
+	secNoIndexKind1 := FieldIndexKindNew("secNo", normalIndex)                       //定义secNo为普通索引字段
+	wzidx := IndexNewDefault([]*FieldIndexKind{midfieldIndexKind1, secNoIndexKind1}) //创建一个普通组合索引
+	table.AddIndex(wzidx)                                                            //添加一个组合普通索引字段
+	//------------------------------
 
 	table.Insert(&map[string]any{
 		"mid":     1,
