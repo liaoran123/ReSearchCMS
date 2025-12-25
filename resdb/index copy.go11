@@ -149,46 +149,38 @@ func GetFullTextToken(nr string, ftlen int) (tokens []string) {
 // ------------------------------------------
 // 组织索引值
 // 组合索引值，主键和索引是一样的，但是全文索引不同。
-type JoinIndexValue func(fieldsBytes *map[string][]byte, fieldIndexKind []*FieldIndexKind, pfx ...string) any
+type JoinIndexValue func(fieldsBytes *map[string][]byte, fieldIndexKind []*FieldIndexKind, fields ...string) any
 
 // 将字段对应的字节值拼接起来，用SPLIT分隔
-func DefaultJoinIndexValue(fieldsBytes *map[string][]byte, fieldIndexKind []*FieldIndexKind, pfx ...string) any {
+func DefaultJoinIndexValue(fieldsBytes *map[string][]byte, fieldIndexKind []*FieldIndexKind, fields ...string) any {
 	var indexValue []byte
-	for i, fit := range fieldIndexKind {
-		if v, ok := (*fieldsBytes)[fit.field]; !ok {
+	for i, field := range fields {
+		if v, ok := (*fieldsBytes)[field]; !ok {
 			return nil
 		} else {
 			indexValue = append(indexValue, v...)
-			if i < len(fieldIndexKind)-1 {
+			if i < len(fields)-1 {
 				indexValue = append(indexValue, SPLIT...)
 			}
 		}
 	}
 	//pfx := fieldIndexKind[0].indexKind.Name()
-	Pfx := ""
-	if len(pfx) > 0 {
-		Pfx = strings.Join(pfx, SPLIT)
-	}
-	indexValue = bytes.Join([][]byte{[]byte(Pfx), indexValue}, []byte(nil))
+	//indexValue = bytes.Join([][]byte{[]byte(pfx), indexValue}, []byte(SPLIT))
 	return indexValue
 }
 
 // 将字段对应的字节值拼接起来，用SPLIT分隔
-func DefaultJoinFullTextIndexValue(fieldsBytes *map[string][]byte, fieldIndexKind []*FieldIndexKind, pfx ...string) any {
+func DefaultJoinFullTextIndexValue(fieldsBytes *map[string][]byte, fieldIndexKind []*FieldIndexKind, fields ...string) any {
 	var r [][]byte
-
+	//var ftpxf []byte
 	var fieldValue []byte
 	var exists bool
 	var curpfx [][]byte
 	//curpfx = append(curpfx, fullTextPrefix)
-	ftpxf := []byte(nil)
-	if len(pfx) > 0 {
-		ftpxf = []byte(strings.Join(pfx, SPLIT))
-	}
 	var isnil bool
-	for _, fit := range fieldIndexKind {
+	for _, field := range fields {
 		// 获取字段的实际值
-		fieldValue, exists = (*fieldsBytes)[fit.field]
+		fieldValue, exists = (*fieldsBytes)[field]
 		if !exists {
 			continue // 跳过不存在的字段
 		}
@@ -196,7 +188,7 @@ func DefaultJoinFullTextIndexValue(fieldsBytes *map[string][]byte, fieldIndexKin
 		ftlen := 5
 		//组合全文索引时，全文索引字段和普通索引字段组合，需要判断那个字段是全文索引字段
 		for _, fit := range fieldIndexKind {
-			if fit.field == fit.field {
+			if fit.field == field {
 				if _, isFullTextField = fit.indexKind.(*FullTextIndex); isFullTextField {
 					//ftpxf = []byte(fit.indexKind.Name())
 					break
@@ -223,12 +215,12 @@ func DefaultJoinFullTextIndexValue(fieldsBytes *map[string][]byte, fieldIndexKin
 				if token == "" {
 					continue
 				}
-				curpfx = append(curpfx, bytes.Join([][]byte{ftpxf, []byte(token)}, []byte(SPLIT)))
-				//curpfx = append(curpfx, []byte(token))
+				//curpfx = append(curpfx, bytes.Join([][]byte{ftpxf, []byte(token)}, []byte(SPLIT)))
+				curpfx = append(curpfx, []byte(token))
 			}
 		case false: // 普通索引字段
-			curpfx = append(curpfx, bytes.Join([][]byte{ftpxf, fieldValue}, []byte(SPLIT)))
-			//curpfx = append(curpfx, fieldValue)
+			//curpfx = append(curpfx, bytes.Join([][]byte{ftpxf, fieldValue}, []byte(SPLIT)))
+			curpfx = append(curpfx, fieldValue)
 		}
 		//返回结果是否为空
 		isnil = r == nil
@@ -249,7 +241,7 @@ func DefaultJoinFullTextIndexValue(fieldsBytes *map[string][]byte, fieldIndexKin
 			}
 		}
 		curpfx = curpfx[:0]
-		ftpxf = ftpxf[:0]
+		//ftpxf = ftpxf[:0]
 	}
 	return r
 }
@@ -316,13 +308,13 @@ func (idx *Index) Prefix() string {
 }
 
 // 默认普通索引值拼接，返回[]byte
-func (idx *Index) IndexJoinValue(fieldsBytes *map[string][]byte, pkpfx ...string) any {
-	return idx.NormalIndexJoinValue(fieldsBytes, idx.set, pkpfx...)
+func (idx *Index) IndexJoinValue(fieldsBytes *map[string][]byte, fields ...string) any {
+	return idx.NormalIndexJoinValue(fieldsBytes, idx.set, fields...)
 }
 
 // 默认全文索引值拼接，返回[][]byte
-func (idx *Index) FullTextJoinValue(fieldsBytes *map[string][]byte, pkpfx ...string) any {
-	return idx.FullTextIndexJoinValue(fieldsBytes, idx.set, pkpfx...)
+func (idx *Index) FullTextJoinValue(fieldsBytes *map[string][]byte, fields ...string) any {
+	return idx.FullTextIndexJoinValue(fieldsBytes, idx.set, fields...)
 }
 
 // ------------------------------------------
@@ -374,7 +366,7 @@ func (is *Indexs) Match(fields []string) []*FieldIndexKind {
 // 数据库的添加，删除，修改等操作
 // 匹配字段ufield ，用于记录修改某个字段时，只需要处理这些字段的索引即可。
 // ins 表示是否是插入操作，true 表示put操作，false 表示delete操作。
-func (is *Indexs) Joins(fieldsBytes *map[string][]byte, pfx string, ufield ...string) (rs *IndexJoinValue) {
+func (is *Indexs) Joins(fieldsBytes *map[string][]byte, ufield ...string) (rs *IndexJoinValue) {
 	rs = DefaultIndexJoinValuePool.Get()
 	// 遍历索引集
 	var indexValue any
@@ -389,36 +381,34 @@ func (is *Indexs) Joins(fieldsBytes *map[string][]byte, pfx string, ufield ...st
 				}
 			}
 		}
-
-		pkpfx := idx.Prefix()
-		if pfx != "" {
-			pkpfx = pfx + SPLIT + pkpfx
+		fields := make([]string, 0, len(idx.set))
+		for _, fik := range idx.set {
+			fields = append(fields, fik.Field())
 		}
+		pkpfx := idx.Prefix()
 		indexKind = idx.GetIndexKind(idx.set)
 		switch indexKind.(type) {
 		case *Primary:
-			indexValue = idx.IndexJoinValue(fieldsBytes)
+			indexValue = idx.IndexJoinValue(fieldsBytes, fields...)
 			rs.PrimaryIDValue = indexValue.([]byte)
 			// 添加索引前缀
 			rs.PrimaryValue = bytes.Join([][]byte{[]byte(pkpfx), rs.PrimaryIDValue}, []byte(SPLIT))
 			rs.PrimaryLen = len(idx.set)
 
 		case *FullTextIndex:
-			indexValues = idx.FullTextJoinValue(fieldsBytes, pkpfx)
+			indexValues = idx.FullTextJoinValue(fieldsBytes, fields...)
 			fulltextvalue := indexValues.([][]byte)
-			rs.OtherValues = append(rs.OtherValues, append([][]byte(nil), fulltextvalue...)...)
-			/*
-				// 全文索引值拼接，添加索引前缀
-				for _, v := range fulltextvalue {
-					pv := bytes.Join([][]byte{[]byte(pkpfx), v}, []byte(SPLIT))
-					rs.OtherValues = append(rs.OtherValues, append([]byte(nil), pv...))
-				}*/
+			// 全文索引值拼接，添加索引前缀
+			for _, v := range fulltextvalue {
+				pv := bytes.Join([][]byte{[]byte(pkpfx), v}, []byte(SPLIT))
+				rs.OtherValues = append(rs.OtherValues, append([]byte(nil), pv...))
+			}
 			continue
 
 		case *NormalIndex:
-			indexValue = idx.IndexJoinValue(fieldsBytes, pkpfx)
+			indexValue = idx.IndexJoinValue(fieldsBytes, fields...)
 			// 添加索引前缀
-			rs.OtherValues = append(rs.OtherValues, append([]byte(nil), bytes.Join([][]byte{[]byte(nil), indexValue.([]byte)}, []byte(nil))...))
+			rs.OtherValues = append(rs.OtherValues, append([]byte(nil), bytes.Join([][]byte{[]byte(pkpfx), indexValue.([]byte)}, []byte(SPLIT))...))
 		case *NoIndex:
 			rs.OtherValues = append(rs.OtherValues, nil)
 		default:

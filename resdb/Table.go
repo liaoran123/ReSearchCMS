@@ -558,7 +558,7 @@ func (t *Table) Insert(fields *map[string]any, batchs ...*leveldb.Batch) (curren
 			GlobalBatchPool.Put(batch)
 		}()
 	}
-	rs := t.indexs.Joins(&fieldsBytes)
+	rs := t.indexs.Joins(&fieldsBytes, t.name)
 	defer DefaultIndexJoinValuePool.Release(rs)
 	return currentID, nil
 }
