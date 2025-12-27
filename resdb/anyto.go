@@ -110,7 +110,7 @@ func StrToAny(i string, t any) any {
 // 只有字符串和整型可以进行排序，故除整型外，其他类型都返回v.(string)的[]byte
 func AnyToBytes(v any) []byte {
 	if v == nil {
-		return []byte("")
+		return []byte(nil)
 	}
 	switch val := v.(type) {
 	case int:

@@ -6,28 +6,13 @@ import (
 )
 
 // ------------------------------------------
-// 基础索引接口，定义所有索引类型共有的方法
-type Index interface {
-	// 添加索引字段
-	AddFields(field ...string)
-	// 获取索引字段列表
-	GetFields() []string
-	// 获取索引前缀
-	Prefix() string
-	Join(fieldsBytes *map[string][]byte, pfx string) []byte
-}
-
-// ------------------------------------------
-// 主键接口，嵌入基础索引接口
 type PrimaryKey interface {
-	Index
-	// 获取主键ID
+	AddFields(field ...string)
+	GetFields() []string
 	ID() []byte
-	// 拼接主键索引值
-	//Join(fieldsBytes *map[string][]byte, pfx string) []byte
-	// 获取主键字段数量
+	Join(fieldsBytes *map[string][]byte, pfx string) []byte
+	Prefix() string
 	Len() int
-	// 设置主键ID
 	SetID(fieldsBytes *map[string][]byte)
 }
 
@@ -89,11 +74,12 @@ func (dpk *DefaultPrimaryKey) ID() []byte {
 }
 
 // ------------------------------------------
-// 普通索引接口，嵌入基础索引接口
+// 普通索引接口
 type NormalIndex interface {
-	Index
-	// 拼接普通索引值
-	//Join(fieldsBytes *map[string][]byte, pfx string) []byte
+	AddFields(field ...string)
+	GetFields() []string
+	Join(fieldsBytes *map[string][]byte, pfx string) []byte
+	Prefix() string
 }
 
 // ------------------------------------------
@@ -138,12 +124,12 @@ func (dni *DefaultNormalIndex) Join(fieldsBytes *map[string][]byte, pfx string) 
 }
 
 // ------------------------------------------
-// 全文索引接口，嵌入基础索引接口
+// 全文索引接口
 type FullTextIndex interface {
-	Index
-	// 拼接全文索引值
-	Joins(fieldsBytes *map[string][]byte, pfx string) [][]byte
-	// 分词方法
+	AddFields(field ...string)
+	GetFields() []string
+	Join(fieldsBytes *map[string][]byte, pfx string) [][]byte
+	Prefix() string
 	Tokenize(nr string, ftlen int) (tokens []string)
 }
 
@@ -205,28 +191,7 @@ func (dfi *DefaultFullTextIndex) Tokenize(nr string, ftlen int) (tokens []string
 	}
 	return
 }
-
-// 普通拼接，用于索引时的前缀拼接
-func (dfi *DefaultFullTextIndex) Join(fieldsBytes *map[string][]byte, pfx string) []byte {
-	var Value []byte
-	for i, fit := range dfi.fields {
-		if v, ok := (*fieldsBytes)[fit]; !ok {
-			return nil
-		} else {
-			Value = append(Value, v...)
-			if i < len(dfi.fields)-1 {
-				Value = append(Value, SPLIT...)
-			}
-		}
-	}
-	dfiPfx := dfi.Prefix()
-	if len(pfx) > 0 {
-		dfiPfx = pfx + SPLIT + dfiPfx // + SPLIT
-	}
-	Value = bytes.Join([][]byte{[]byte(dfiPfx), Value}, []byte(SPLIT))
-	return Value
-}
-func (dfi *DefaultFullTextIndex) Joins(fieldsBytes *map[string][]byte, pfx string) [][]byte {
+func (dfi *DefaultFullTextIndex) Join(fieldsBytes *map[string][]byte, pfx string) [][]byte {
 	var r [][]byte
 
 	var fieldValue []byte

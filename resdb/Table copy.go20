@@ -32,10 +32,7 @@ type Table struct {
 		这是为了提取主键中的某个字段值作为匹配索引。
 		所以在用索引的主键值回表记录时，需要对索引值进行反转义。
 	*/
-	primaryKey    PrimaryKey
-	normalIndex   []NormalIndex
-	fullTextIndex []FullTextIndex
-	//indexs        *Indexs
+	indexs *Indexs
 	//primary  []string   // 主键字段。
 	counter AutoInt // 自动增值计数器，使用自定义的AutoInt
 	//index    [][]string // 索引数组，支持单索引和组合索引，以及单全文索引和组合全文索引
@@ -63,18 +60,9 @@ func TableNew(name string) (*Table, error) {
 		fields: make(map[string]any),
 		//primary: []string{"id"},
 		//ftlen:   5,
-		//indexs: new(Indexs),
-		rsdb: RsDB,
+		indexs: new(Indexs),
+		rsdb:   RsDB,
 	}, nil
-}
-func (t *Table) SetPrimaryKey(primaryKey PrimaryKey) {
-	t.primaryKey = primaryKey
-}
-func (t *Table) SetNormalIndex(index []NormalIndex) {
-	t.normalIndex = index
-}
-func (t *Table) SetFullTextIndex(index []FullTextIndex) {
-	t.fullTextIndex = index
 }
 
 // 获取自动增值的值
@@ -106,10 +94,10 @@ func (t *Table) MaxAutoValue() int {
 	rkey = rkey[len(key):]
 	var target any
 	// 如果主键字段为空，默认使用"id"
-	if len(t.primaryKey.GetFields()) == 0 || t.primaryKey.GetFields()[0] == "" {
+	if len(t.indexs.PrimaryFields()) == 0 || t.indexs.PrimaryFields()[0].Field() == "" {
 		target = 0
 	} else {
-		target = t.fields[t.primaryKey.GetFields()[0]]
+		target = t.fields[t.indexs.PrimaryFields()[0].Field()]
 	}
 	r := Bytes(rkey).ToAny(target)
 	// 使用 reflect 包进行类型转换，更灵活地处理各种数值类型
@@ -146,68 +134,16 @@ func (t *Table) GetName() string {
 
 // GetPrimary 获取主键字段名
 func (t *Table) GetPrimary() []string {
-	primaryFields := make([]string, len(t.primaryKey.GetFields()))
-	for _, field := range t.primaryKey.GetFields() {
-		primaryFields = append(primaryFields, field)
+	primaryFields := make([]string, len(t.indexs.PrimaryFields()))
+	for _, field := range t.indexs.PrimaryFields() {
+		primaryFields = append(primaryFields, field.Field())
 	}
 	return primaryFields
 }
-
-/*
-func (t *Table) AddPrimaryKey(fieldIndexKind ...*FieldIndexKind) error {
-	if t.primaryKey == nil {
-		t.primaryKey = DefaultPrimaryKeyNew()
-	}
-	//检查字段是否存在
-	for _, field := range fieldIndexKind {
-		if _, ok := t.fields[field.Field()]; !ok {
-			return fmt.Errorf("字段 '%s' 不存在", field.Field())
-		}
-	}
-	t.primaryKey.Add(fieldIndexKind...)
-	return nil
-}
-
-func (t *Table) AddNormalIndex(fieldIndexKind ...*FieldIndexKind) error {
-	if t.normalIndex == nil {
-		ni := DefaultNormalIndexNew()
-		t.normalIndex = make([]NormalIndex, 0)
-		t.normalIndex = append(t.normalIndex, ni)
-	}
-	//检查字段是否存在
-	for _, field := range fieldIndexKind {
-		if _, ok := t.fields[field.Field()]; !ok {
-			return fmt.Errorf("字段 '%s' 不存在", field.Field())
-		}
-	}
-	nidx := DefaultNormalIndexNew()
-	nidx.Add(fieldIndexKind...)
-	t.normalIndex = append(t.normalIndex, nidx)
-	return nil
-}
-func (t *Table) AddFullTextIndex(fieldIndexKind ...*FieldIndexKind) error {
-	if t.fullTextIndex == nil {
-		t.fullTextIndex = make([]FullTextIndex, 0)
-		fidx := DefaultFullTextIndexNew()
-		t.fullTextIndex = append(t.fullTextIndex, fidx)
-	}
-	//检查字段是否存在
-	for _, field := range fieldIndexKind {
-		if _, ok := t.fields[field.Field()]; !ok {
-			return fmt.Errorf("字段 '%s' 不存在", field.Field())
-		}
-	}
-	fidx := DefaultFullTextIndexNew()
-	fidx.Add(fieldIndexKind...)
-	t.fullTextIndex = append(t.fullTextIndex, fidx)
-	return nil
-}
-
-
 func (t *Table) AddIndex(index ...*Index) {
 	t.indexs.Add(index...)
 }
-*/
+
 /*
 // 检测索引索引，并且返回类型枚举
 func (t *Table) MatchIndex(indexs []string) *Indexs {
@@ -219,7 +155,7 @@ func (t *Table) MatchIndex(indexs []string) *Indexs {
 	idxs.fields = indexs
 	indexCount := 0
 	//判断是否符合主键索引
-	for _, field := range t.primaryKey.GetFields() {
+	for _, field := range t.IndexSet.PrimaryFields() {
 		if slices.Contains(indexs, field.Field()) {
 			indexCount++
 		}
@@ -559,7 +495,7 @@ func (t *Table) CheckType(fields *map[string]any) error {
 		if exists {
 			// 检查类型是否匹配
 			//主键可以是nil，其他字段不能是nil
-			if field == t.primaryKey.GetFields()[0] && t.primaryKey.GetFields()[0] == "id" && value == nil {
+			if field == t.indexs.PrimaryFields()[0].Field() && t.indexs.PrimaryFields()[0].Field() == "id" && value == nil {
 				continue
 			}
 			if fieldValue != nil && reflect.TypeOf(fieldValue) != reflect.TypeOf(value) {
@@ -589,8 +525,8 @@ func (t *Table) Insert(fields *map[string]any, batchs ...*leveldb.Batch) (curren
 	//当前自动增值的值
 	currentID = -1
 	//是否支持默认自动增值主键，单主键并且主键字段名为"id"
-	pklen := len(t.primaryKey.GetFields())
-	pkfield := t.primaryKey.GetFields()[0]
+	pklen := len(t.indexs.PrimaryFields())
+	pkfield := t.indexs.PrimaryFields()[0].Field()
 	supportDefault := pklen == 1 && pkfield == "id"
 	if supportDefault {
 		// 检查是否提供了主键字段
@@ -625,16 +561,15 @@ func (t *Table) Insert(fields *map[string]any, batchs ...*leveldb.Batch) (curren
 			GlobalBatchPool.Put(batch)
 		}()
 	}
-	rs := t.JoinIndex(fieldsBytes, t.name)
+	rs := t.indexs.Joins(&fieldsBytes, t.name)
 	defer DefaultIndexJoinValuePool.Release(rs)
-
 	//组合索引，则主键值需要转义。转义是对组合主键的某个字段值分解提取，用于索引匹配。
 	if pklen > 1 {
 		rs.PrimaryIDValue = Bytes(rs.PrimaryIDValue).Escape()
 	}
 	//put主键记录数据，待续..............
 	record := FormatRecord(&fieldsBytes)
-	batch.Put(rs.PrimaryValue, record)
+	batch.Put(rs.PrimaryIDValue, record)
 	t.ToBatch(batch, rs, true)
 	if len(batchs) == 0 { //用户未手动控制事务，自动提交
 		err = t.rsdb.Db.Write(batch, nil)
@@ -643,39 +578,6 @@ func (t *Table) Insert(fields *map[string]any, batchs ...*leveldb.Batch) (curren
 		}
 	}
 	return currentID, nil
-}
-func (t *Table) JoinIndex(fieldsBytes map[string][]byte, pfx string, ufield ...string) *IndexJoinValue {
-	rs := DefaultIndexJoinValuePool.Get()
-	rs.PrimaryValue = t.primaryKey.Join(&fieldsBytes, pfx)
-	rs.PrimaryIDValue = t.primaryKey.ID()
-	for _, idx := range t.normalIndex {
-		for _, uf := range ufield {
-			for _, fit := range idx.GetFields() {
-				if uf != fit {
-					continue
-				}
-			}
-		}
-		indexValue := idx.Join(&fieldsBytes, pfx)
-		rs.OtherValues = append(rs.OtherValues, append([]byte(nil), bytes.Join([][]byte{[]byte(nil), indexValue}, []byte(nil))...))
-	}
-	for _, idx := range t.fullTextIndex {
-		for _, uf := range ufield {
-			for _, fit := range idx.GetFields() {
-				if uf != fit {
-					continue
-				}
-			}
-		}
-		joinValues := idx.Joins(&fieldsBytes, pfx)
-		if len(joinValues) > 0 {
-			rs.OtherValues = append(rs.OtherValues, append([][]byte(nil), joinValues...)...)
-		}
-	}
-	for _, idx := range rs.OtherValues {
-		fmt.Printf("idx: %v\n", string(idx))
-	}
-	return rs
 }
 
 // 添加或删除数据到Batch
@@ -740,7 +642,7 @@ func (t *Table) ParseRecordValue(record []byte) map[string]any {
 
 // 获取字段值拼接
 // NeedEscape 是否需要转义，默认不转义。只为用于组合主键的情况。
-func (t *Table) GetFieldJoin(fieldsBytes *map[string][]byte, fields []string, NeedEscape ...bool) (r []byte) {
+func (t *Table) GetFieldJoin(fieldsBytes *map[string][]byte, fields []*FieldIndexKind, NeedEscape ...bool) (r []byte) {
 	var exists bool
 	var fieldValue []byte
 	var isnil bool
@@ -748,7 +650,7 @@ func (t *Table) GetFieldJoin(fieldsBytes *map[string][]byte, fields []string, Ne
 	isNeedEscape := len(NeedEscape) > 0 && NeedEscape[0] == true //&& len(fields) > 0
 	for _, index := range fields {
 		// 获取字段值
-		fieldValue, exists = (*fieldsBytes)[index]
+		fieldValue, exists = (*fieldsBytes)[index.Field()]
 		// 如果字段不存在或值为nil，跳过该索引
 		if !exists || fieldValue == nil {
 			break
@@ -928,69 +830,13 @@ func (t *Table) For() iterator.Iterator {
 
 // 遍历表所有数据
 func (t *Table) ForData() iterator.Iterator {
-	pfx := t.name + SPLIT + t.primaryKey.Prefix()
+	pfx := t.name + SPLIT + t.indexs.PrimaryIndex().Prefix()
 	return t.rsdb.GetIterator([]byte(pfx))
-}
-
-// 匹配对应的索引字段和索引类型
-// 需要完全匹配，不能部分匹配
-
-// 检测索引索引，并且返回类型枚举
-func (t *Table) MatchIndex(fields ...string) Index {
-	var match Index
-
-	indexCount := 0
-	//是否匹配
-	//isMatch := false
-	//判断是否是主键索引
-	if len(fields) == len(t.primaryKey.GetFields()) {
-		for _, field := range fields {
-			if slices.Contains(t.primaryKey.GetFields(), field) {
-				indexCount++
-			}
-		}
-		if indexCount == len(fields) {
-			match = t.primaryKey
-			return match
-		}
-	}
-
-	indexCount = 0
-	// 统计全文索引的个数，即indexs存在fulltext的字段数
-	for _, ftidx := range t.fullTextIndex {
-		for _, field := range fields {
-			if slices.Contains(ftidx.GetFields(), field) {
-				indexCount++
-			}
-		}
-		if indexCount == len(fields) {
-			match = ftidx
-			return match
-		} else {
-			indexCount = 0
-		}
-	}
-	indexCount = 0
-	// 统计普通索引的个数，即indexs存在normal的字段数
-	for _, nidx := range t.normalIndex {
-		for _, field := range fields {
-			if slices.Contains(nidx.GetFields(), field) {
-				indexCount++
-			}
-		}
-		if indexCount == len(fields) {
-			match = nidx
-			return match
-		} else {
-			indexCount = 0
-		}
-	}
-	return match
 }
 
 // 根据字段名和值搜索返回数据迭代器
 // 缓存迭代器，避免每次for都重新创建迭代器
-func (t *Table) Search(fields *map[string]any) (iterator.Iterator, Index, error) {
+func (t *Table) Search(fields *map[string]any) (iterator.Iterator, *Index, error) {
 	var field []string
 	for k := range *fields {
 		//判断字段是否在表中
@@ -999,13 +845,19 @@ func (t *Table) Search(fields *map[string]any) (iterator.Iterator, Index, error)
 		}
 		field = append(field, k)
 	}
-	idx := t.MatchIndex(field...)
-	if idx == nil {
+	index := t.indexs.Match(field)
+	if index == nil {
 		return nil, nil, fmt.Errorf("字段 '%s' 不存在于表 '%s'", field[0], t.name)
 	}
+	pfx := index.Prefix()
 	fieldsBytes := t.FieldsToBytes(fields)
-	key := idx.Join(&fieldsBytes, t.name)
-	return t.rsdb.GetIterator(key), idx, nil
+	joinValue := index.NormalIndexJoinValue(&fieldsBytes, index.set).([]byte)
+	keys := []byte(pfx) //[]byte(pfx + SPLIT)
+	if len(joinValue) > 0 {
+		keys = bytes.Join([][]byte{[]byte(keys), joinValue}, []byte(SPLIT))
+	}
+
+	return t.rsdb.GetIterator(keys), index, nil
 }
 
 func (t *Table) SearchToDataIter(fields *map[string]any) *TableIter {

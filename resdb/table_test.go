@@ -2,6 +2,7 @@
 package resdb
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -775,28 +776,23 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 		"content": "", //文章内容
 	}
 	table.SetFields(fields)
-	//定义索引类型
-	primary := new(Primary)             //主键
-	normalIndex := new(NormalIndex)     //普通索引
-	fullTextIndex := FullTextIndexNew() //全文索引
+	PrimaryKeys := DefaultPrimaryKeyNew()
+	PrimaryKeys.AddFields("mid", "secNo") //创建一个mid, secNo的组合主键
+	table.SetPrimaryKey(PrimaryKeys)      //将组合主键设置到表中
 
-	midfieldIndexKind := FieldIndexKindNew("mid", primary)                       //定义mid主键字段
-	secNoIndexKind := FieldIndexKindNew("secNo", primary)                        //定义secNo主键字段
-	pks := IndexNewDefault([]*FieldIndexKind{midfieldIndexKind, secNoIndexKind}) //创建一个组合主键
-	table.AddIndex(pks)
+	fullText := DefaultFullTextIndexNew()
+	fullText.AddFields("content", "mid", "secNo")
+	//指定content为全文索引字段，长度为5
+	//如果没有指定，则等同一般索引
+	err = fullText.AddFullText("content", 5) //添加content全文索引字段，长度为10
+	if err != nil {
+		t.Fatalf("AddFullText 失败: %v", err)
+	}
+	table.SetFullTextIndex([]FullTextIndex{fullText}) //将全文索引设置到表中
 
-	contentIndexKind := FieldIndexKindNew("content", fullTextIndex)   //定义content全文索引字段
-	contentFt := IndexNewDefault([]*FieldIndexKind{contentIndexKind}) //创建一个全文索引
-	table.AddIndex(contentFt)
-
-	//----每个字段可以在不同索引中定义为不同的索引类型，高度灵活---------------------------------------------
-	//----mid,secNo前面索引中定义为主键，这里定义为普通索引
-	//----------无用索引，只作测试---查询时由于与上面组合主键相同，只会命中组合主键，该组合索引不会被使用-----------------
-	//普通索引
-	midfieldIndexKind1 := FieldIndexKindNew("mid", normalIndex)                      //定义mid为普通索引字段
-	secNoIndexKind1 := FieldIndexKindNew("secNo", normalIndex)                       //定义secNo为普通索引字段
-	wzidx := IndexNewDefault([]*FieldIndexKind{midfieldIndexKind1, secNoIndexKind1}) //创建一个普通组合索引
-	table.AddIndex(wzidx)                                                            //添加一个组合普通索引字段
+	normalIndex := DefaultNormalIndexNew()
+	normalIndex.AddFields("mid", "secNo")            //创建一个普通组合索引
+	table.SetNormalIndex([]NormalIndex{normalIndex}) //将普通索引设置到表中
 	//------------------------------
 
 	table.Insert(&map[string]any{
@@ -823,33 +819,33 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 		"title":   "文章标题22",
 		"content": "文章内容22",
 	})
-	/*
-		// 搜索指定文章的所有句子
-		fields1 := map[string]any{
-			"mid":   nil, // id=nil或空，将获取所有表记录
-			"secNo": nil, // id=nil或空，将获取所有表记录
-		}
-	*/
+
+	// 搜索指定文章的所有句子
+	fields1 := map[string]any{
+		"mid":   nil, // id=nil或空，将获取所有表记录
+		"secNo": nil, // id=nil或空，将获取所有表记录
+	}
+
 	/*
 		fields1 := map[string]any{
 			"content": "文章内容22",
 		}*/
+
+	iter := table.For()
+	for iter.Next() {
+		fmt.Printf("iter.Key(): %v,iter.Value(): %v\n", string(iter.Key()), string(iter.Value()))
+	}
+
+	dataIter := table.SearchToDataIter(&fields1)
+	if dataIter.iter == nil {
+		t.Fatalf("SearchToDataIter 失败: %v", err)
+	}
+	defer dataIter.Release()
+	records := dataIter.GerRecords(true)
+	for i, item := range records {
+		fmt.Printf("结果集 %d: %v\n", i, item)
+	}
 	/*
-		iter := table.For()
-		for iter.Next() {
-			fmt.Printf("iter.Key(): %v,iter.Value(): %v\n", string(iter.Key()), string(iter.Value()))
-		}
-
-		dataIter := table.SearchToDataIter(&fields1)
-		if dataIter.iter == nil {
-			t.Fatalf("SearchToDataIter 失败: %v", err)
-		}
-		defer dataIter.Release()
-		records := dataIter.GerRecords(true)
-		for i, item := range records {
-			fmt.Printf("结果集 %d: %v\n", i, item)
-		}
-
 		fields2 := map[string]any{
 			"content": "文章内容22",
 		}

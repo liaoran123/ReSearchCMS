@@ -39,7 +39,7 @@ func (p *ByIndex) Get(t *Table, v []byte, fieldParseFunc ...FieldParseFunc) Reco
 //简单直接函数类型ByIndexGet，需要外部数据组合操作，才需要使用结构。
 func ByIndexGet(t *Table, v []byte, fieldParseFunc ...FieldParseFunc) Record {
 	value := v
-	if len(t.primary) > 1 { //只有组合主键才需要转义
+	if len(t.indexs.PrimaryFields()) > 1 { //只有组合主键才需要转义
 		value = Bytes(v).UnEscape()
 	}
 	// 读取完整记录
@@ -48,7 +48,7 @@ func ByIndexGet(t *Table, v []byte, fieldParseFunc ...FieldParseFunc) Record {
 		return nil
 	}
 	// 解析记录并提取指定字段
-	rd := Record(t.ParseValue(byrecord))
+	rd := Record(t.ParseRecordValue(byrecord))
 	for _, fieldParseFunc := range fieldParseFunc {
 		fieldParseFunc(&rd)
 	}
@@ -70,7 +70,7 @@ func (p *ByPrimary) Get(t *Table, v []byte, fieldParseFunc ...FieldParseFunc) Re
 // 解析主键记录
 //ByPrimaryGet=ByPrimary.Get 两种方式都可
 func ByPrimaryGet(t *Table, v []byte, fieldParseFunc ...FieldParseFunc) Record {
-	rd := Record(t.ParseValue(v))
+	rd := Record(t.ParseRecordValue(v))
 	for _, fieldParseFunc := range fieldParseFunc {
 		fieldParseFunc(&rd)
 	}
