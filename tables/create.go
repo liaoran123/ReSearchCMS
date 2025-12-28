@@ -22,10 +22,7 @@ func CreateTable_dir() *storedb.Table {
 	}
 	table.SetFields(fields)
 	//设置主键
-	table.SetPrimary([]string{"id"})
-	// 添加索引
-	table.AddIndex([]string{"url"})
-	table.AddIndex([]string{"ext"})
+
 	//table.AddFullTextField("description")
 	return table
 }
@@ -43,11 +40,6 @@ func CreateTable_article() *storedb.Table {
 	}
 	table.SetFields(fields)
 	//设置主键
-	table.SetPrimary([]string{"mid", "secNo"}) //组合主键，可以查询指定文章的所有句子
-	// 设置全文索引字段
-	table.SetFullTextField("content")
-	// 添加全文索引
-	table.AddIndex([]string{"content"})
 
 	return table
 }

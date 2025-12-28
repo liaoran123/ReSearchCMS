@@ -762,7 +762,7 @@ func TestTableSearch(t *testing.T) {
 	})
 }
 */
-// 测试组合主键
+// 测试组合主键搜索
 func TestCompositePrimaryKeySearch(t *testing.T) {
 	table, err := TableNew("article")
 	if err != nil {
@@ -781,7 +781,12 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 	table.SetPrimaryKey(PrimaryKeys)      //将组合主键设置到表中
 
 	fullText := DefaultFullTextIndexNew()
-	fullText.AddFields("content", "mid", "secNo")
+	/*
+		全文索引所有的值，系统都会自动将主键值拼接在最后。
+		fullText.AddFields("content", "mid", "secNo") 所以这样设计为画蛇添足。
+		系统本身支持组合全文索引，但是使用需要注意，会占用大量的文件空间。
+	*/
+	fullText.AddFields("content")
 	//指定content为全文索引字段，长度为5
 	//如果没有指定，则等同一般索引
 	err = fullText.AddFullText("content", 5) //添加content全文索引字段，长度为10
@@ -799,25 +804,25 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 		"mid":     1,
 		"secNo":   1,
 		"title":   "文章标题11",
-		"content": "文章内容11",
+		"content": "文章内容11，从三个接口中提取了公共方法，避免了重复定义",
 	})
 	table.Insert(&map[string]any{
 		"mid":     1,
 		"secNo":   2,
 		"title":   "文章标题12",
-		"content": "文章内容12",
+		"content": "文章内容12，清晰的层次结构 ：基础接口 + 具体索引类型接口的设计，层次分明",
 	})
 	table.Insert(&map[string]any{
 		"mid":     2,
 		"secNo":   1,
 		"title":   "文章标题21",
-		"content": "文章内容21",
+		"content": "文章内容21，更好的可扩展性 ：新索引类型只需嵌入 IndexBase 接口，即可继承公共方法",
 	})
 	table.Insert(&map[string]any{
 		"mid":     2,
 		"secNo":   2,
 		"title":   "文章标题22",
-		"content": "文章内容22",
+		"content": "文章内容22，高度可定制化 ：每个索引类型都可以根据需求定制索引字段和行为",
 	})
 
 	// 搜索指定文章的所有句子
@@ -825,11 +830,6 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 		"mid":   nil, // id=nil或空，将获取所有表记录
 		"secNo": nil, // id=nil或空，将获取所有表记录
 	}
-
-	/*
-		fields1 := map[string]any{
-			"content": "文章内容22",
-		}*/
 
 	iter := table.For()
 	for iter.Next() {

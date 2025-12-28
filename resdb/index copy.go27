@@ -15,27 +15,22 @@ type Index interface {
 	GetFields() []string
 	// 获取索引前缀
 	Prefix() string
-	SetPrefix(pfx string)
 	// 拼接索引前缀+索引值
 	// 系统对kv数据库优化设计，将已经存在key值索引数据，从value中略去。使用时再重新分解拼接。
 	// 所以，所有拼接数据都要进行转义。否则分解可能存在转义问题。
-	JoinValue(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte
+	Join(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte
 	// 匹配索引字段
-	MatchFields(fields ...string) bool
+	Match(fields ...string) bool
 }
 
-/* todo......
-type AddFields func(field ...string)
-type GetFields func() []string
-type JoinValue func(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte
-type MatchFields func(fields ...string) bool
-*/
 // ------------------------------------------
 // 主键接口，嵌入基础索引接口
 type PrimaryKey interface {
 	Index
 	// 获取主键ID
 	ID() []byte
+	// 拼接主键索引值
+	//Join(fieldsBytes *map[string][]byte, pfx string) []byte
 	// 获取主键字段数量
 	Len() int
 	// 设置主键ID
@@ -54,9 +49,6 @@ func DefaultPrimaryKeyNew() *DefaultPrimaryKey {
 	return &DefaultPrimaryKey{
 		name: "Primary",
 	}
-}
-func (dpk *DefaultPrimaryKey) SetPrefix(pfx string) {
-	dpk.name = pfx
 }
 func (dpk *DefaultPrimaryKey) GetFields() []string {
 	return dpk.fields
@@ -77,7 +69,7 @@ func Match(fields []string, existFields ...string) bool {
 	}
 	return count == len(existFields) //兼容匹配，主键字段可以少于索引字段
 }
-func (dpk *DefaultPrimaryKey) MatchFields(fields ...string) bool {
+func (dpk *DefaultPrimaryKey) Match(fields ...string) bool {
 	return Match(fields, dpk.fields...)
 }
 func (dpk *DefaultPrimaryKey) Len() int {
@@ -97,7 +89,7 @@ func exist(fields []string, existFields ...string) bool {
 	}
 	return false
 }
-func (dpk *DefaultPrimaryKey) JoinValue(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
+func (dpk *DefaultPrimaryKey) Join(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
 	if !exist(dpk.fields, existFields...) {
 		return nil
 	}
@@ -130,6 +122,8 @@ func (dpk *DefaultPrimaryKey) ID() []byte {
 // 普通索引接口，嵌入基础索引接口
 type NormalIndex interface {
 	Index
+	// 拼接普通索引值
+	//Join(fieldsBytes *map[string][]byte, pfx string) []byte
 }
 
 // ------------------------------------------
@@ -143,9 +137,6 @@ func DefaultNormalIndexNew() *DefaultNormalIndex {
 	return &DefaultNormalIndex{
 		name: "Normal",
 	}
-}
-func (dni *DefaultNormalIndex) SetPrefix(pfx string) {
-	dni.name = pfx
 }
 func (dni *DefaultNormalIndex) Prefix() string {
 	return dni.name
@@ -166,6 +157,9 @@ func Join(fieldsBytes *map[string][]byte, fields []string, existFields ...string
 	}
 	var Value bytes.Buffer
 	for i, fit := range fields {
+		if !slices.Contains(existFields, fit) {
+			continue
+		}
 		if v, ok := (*fieldsBytes)[fit]; ok {
 			v = Bytes(v).Escape()
 			Value.Write(v)
@@ -176,7 +170,7 @@ func Join(fieldsBytes *map[string][]byte, fields []string, existFields ...string
 	}
 	return Value.Bytes()
 }
-func (dni *DefaultNormalIndex) JoinValue(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
+func (dni *DefaultNormalIndex) Join(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
 	if !exist(dni.fields, existFields...) {
 		return nil
 	}
@@ -192,7 +186,7 @@ func (dni *DefaultNormalIndex) JoinValue(fieldsBytes *map[string][]byte, pfx str
 	return Value.Bytes()
 }
 
-func (dni *DefaultNormalIndex) MatchFields(fields ...string) bool {
+func (dni *DefaultNormalIndex) Match(fields ...string) bool {
 	return Match(fields, dni.fields...)
 }
 
@@ -201,7 +195,7 @@ func (dni *DefaultNormalIndex) MatchFields(fields ...string) bool {
 type FullTextIndex interface {
 	Index
 	// 拼接全文索引值
-	JoinFullValues(fieldsBytes *map[string][]byte, pfx string, existFields ...string) [][]byte
+	Joins(fieldsBytes *map[string][]byte, pfx string, existFields ...string) [][]byte
 	// 分词方法
 	Tokenize(nr string, ftlen int) (tokens []string)
 }
@@ -229,9 +223,6 @@ func DefaultFullTextIndexNew() *DefaultFullTextIndex {
 func (dfi *DefaultFullTextIndex) GetFields() []string {
 	return dfi.fields
 }
-func (dfi *DefaultFullTextIndex) SetPrefix(pfx string) {
-	dfi.name = pfx
-}
 func (dfi *DefaultFullTextIndex) Prefix() string {
 	return dfi.name
 }
@@ -252,7 +243,6 @@ func (dfi *DefaultFullTextIndex) AddFullText(field string, len int) error {
 	return nil
 }
 func (dfi *DefaultFullTextIndex) Tokenize(nr string, ftlen int) (tokens []string) {
-	tokens = GetStringSlice()
 	var knr string //, fid
 	var ml, cl int
 	var r, idxstr []rune
@@ -270,7 +260,7 @@ func (dfi *DefaultFullTextIndex) Tokenize(nr string, ftlen int) (tokens []string
 }
 
 // 普通拼接，用于索引时的前缀拼接
-func (dfi *DefaultFullTextIndex) JoinValue(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
+func (dfi *DefaultFullTextIndex) Join(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
 	if !exist(dfi.fields, existFields...) {
 		return nil
 	}
@@ -292,12 +282,11 @@ func (dfi *DefaultFullTextIndex) JoinValue(fieldsBytes *map[string][]byte, pfx s
 // 拼接全文索引值，最后都会将主键值拼接在最后,kv: 键值对里，value是nil.。
 // 解析时需要全文索引值中分解出主键值，所以所有的拼接值都需要转义。
 // 搜索词也需要转义，否则无法匹配。
-func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, pfx string, existFields ...string) [][]byte {
+func (dfi *DefaultFullTextIndex) Joins(fieldsBytes *map[string][]byte, pfx string, existFields ...string) [][]byte {
 	if !exist(dfi.fields, existFields...) {
 		return nil
 	}
-	//全文索引数据量大，所以使用对象池，避免频繁分配内存
-	r := GetBytesArray() //[][]byte
+	var r [][]byte
 	var fieldValue []byte
 	var exists bool
 	var curpfx [][]byte
@@ -336,7 +325,6 @@ func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, 
 			fieldStr := string(fieldValue)
 			// 对字段值进行分词
 			tokens := dfi.Tokenize(fieldStr, ftlen)
-			defer PutStringSlice(tokens)
 			var btoken []byte
 			for _, token := range tokens {
 				if token == "" {
@@ -353,7 +341,7 @@ func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, 
 			//curpfx = append(curpfx, fieldValue)
 		}
 		//返回结果是否为空
-		isnil = len(r) == 0
+		isnil = r == nil
 		switch isnil {
 		case true:
 			//r = append(r, append([][]byte{}, ftpxf...)...)
@@ -375,6 +363,6 @@ func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, 
 	}
 	return r
 }
-func (dfi *DefaultFullTextIndex) MatchFields(fields ...string) bool {
+func (dfi *DefaultFullTextIndex) Match(fields ...string) bool {
 	return Match(fields, dfi.fields...)
 }

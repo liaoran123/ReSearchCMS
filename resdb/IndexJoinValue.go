@@ -6,7 +6,7 @@ type IndexJoinValue struct {
 	PrimaryLen     int
 	PrimaryIDValue []byte
 	PrimaryValue   []byte
-	OtherValues    [][]byte
+	IndexsValues   [][]byte
 }
 
 // IndexJoinValuePool 结构体用于封装 sync.Pool，提供更好的封装和扩展性
@@ -23,7 +23,7 @@ func NewIndexJoinValuePool() *IndexJoinValuePool {
 				return &IndexJoinValue{
 					PrimaryIDValue: make([]byte, 0, 64),
 					PrimaryValue:   make([]byte, 0, 256),
-					OtherValues:    make([][]byte, 0, 4),
+					IndexsValues:   make([][]byte, 0, 4),
 				}
 			},
 		},
@@ -44,11 +44,11 @@ func (p *IndexJoinValuePool) Release(v *IndexJoinValue) {
 	v.PrimaryLen = 0
 	v.PrimaryIDValue = v.PrimaryIDValue[:0]
 	v.PrimaryValue = v.PrimaryValue[:0]
-	// 清空 OtherValues 中的切片，但不释放底层数组
-	for i := range v.OtherValues {
-		v.OtherValues[i] = v.OtherValues[i][:0]
+	// 清空 IndexsValues 中的切片，但不释放底层数组
+	for i := range v.IndexsValues {
+		v.IndexsValues[i] = v.IndexsValues[i][:0]
 	}
-	v.OtherValues = v.OtherValues[:0]
+	v.IndexsValues = v.IndexsValues[:0]
 	p.pool.Put(v)
 }
 
