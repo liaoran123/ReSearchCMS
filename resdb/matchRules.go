@@ -1,5 +1,10 @@
 package resdb
 
+// 根据TableIter回传的key,value所有能得到的field的值，进行所需匹配
+type MatchKeyValue interface {
+	Match(table *Table, KVs *map[string]any) bool
+}
+
 type MatchRule struct {
 	// 需要获取匹配的字段名，TableIter会根据这些字段名获取对应的值回传
 	// 如果Fields为空，默认是要匹配主键值，单个主键有效。

@@ -35,25 +35,24 @@ type MatchFields func(fields ...string) bool
 type PrimaryKey interface {
 	Index
 	// 获取主键ID
-	//ID() []byte
+	ID() []byte
 	// 获取主键字段数量
 	Len() int
 	// 设置主键ID
-	//SetID(fieldsBytes *map[string][]byte)
-	GetID(fieldsBytes *map[string][]byte, existFields ...string) []byte
+	SetID(fieldsBytes *map[string][]byte)
 }
 
 // ------------------------------------------
 // 默认主键索引
 type DefaultPrimaryKey struct {
 	fields []string // 主键字段列表，数组，即是支持单主键，也支持组合主键
-	//id     []byte
-	name string
+	id     []byte
+	name   string
 }
 
 func DefaultPrimaryKeyNew() *DefaultPrimaryKey {
 	return &DefaultPrimaryKey{
-		name: "pk",
+		name: "Primary",
 	}
 }
 func (dpk *DefaultPrimaryKey) SetPrefix(pfx string) {
@@ -98,39 +97,29 @@ func exist(fields []string, existFields ...string) bool {
 	}
 	return false
 }
-
-// 用于put时拼接key的值和搜索时的前缀
 func (dpk *DefaultPrimaryKey) JoinValue(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
 	if !exist(dpk.fields, existFields...) {
 		return nil
 	}
 	var Value bytes.Buffer
-	bpxf := JoinAndEscapeToBytes(pfx, dpk.Prefix()) //通常就是表明和索引名拼接
-	if bpxf != nil {
-		Value.Write(Bytes(bpxf))
-		Value.Write([]byte(SPLIT))
+	bpxf := JoinAndEscapeToBytes(pfx, dpk.Prefix())
+	Value.Write(Bytes(bpxf))
+	Value.Write([]byte(SPLIT))
+	if dpk.id == nil {
+		dpk.SetID(fieldsBytes)
 	}
-	Value.Write(Join(fieldsBytes, dpk.fields))
+	Value.Write(dpk.id)
 	return Value.Bytes()
 }
 
-// 過濾存在的字段
-// 系統設計爲過濾key存在的字段不在value中儲存。
-func (dpk *DefaultPrimaryKey) GetID(fieldsBytes *map[string][]byte, FilterFields ...string) []byte {
-	var Value bytes.Buffer
-	for i, fit := range dpk.fields {
-		if slices.Contains(FilterFields, fit) {
-			continue
-		}
-		if v, ok := (*fieldsBytes)[fit]; ok {
-			v = Bytes(v).Escape()
-			Value.Write(v)
-			if i < len(dpk.fields)-1 {
-				Value.Write([]byte(SPLIT))
-			}
-		}
+func (dpk *DefaultPrimaryKey) SetID(fieldsBytes *map[string][]byte) {
+	if dpk.id == nil {
+		dpk.id = Join(fieldsBytes, dpk.fields)
 	}
-	return Value.Bytes()
+}
+
+func (dpk *DefaultPrimaryKey) ID() []byte {
+	return dpk.id
 }
 
 // ------------------------------------------
@@ -148,7 +137,7 @@ type DefaultNormalIndex struct {
 
 func DefaultNormalIndexNew() *DefaultNormalIndex {
 	return &DefaultNormalIndex{
-		name: "idx",
+		name: "Normal",
 	}
 }
 func (dni *DefaultNormalIndex) SetPrefix(pfx string) {
@@ -183,18 +172,14 @@ func Join(fieldsBytes *map[string][]byte, fields []string, existFields ...string
 	}
 	return Value.Bytes()
 }
-
-// 用于put时拼接key的值和搜索时的前缀
 func (dni *DefaultNormalIndex) JoinValue(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
 	if !exist(dni.fields, existFields...) {
 		return nil
 	}
 	var Value bytes.Buffer
-	bpxf := JoinAndEscapeToBytes(pfx, dni.Prefix()) //通常就是表明和索引名拼接
-	if bpxf != nil {
-		Value.Write(Bytes(bpxf))
-		Value.Write([]byte(SPLIT))
-	}
+	bpxf := JoinAndEscapeToBytes(pfx, dni.Prefix())
+	Value.Write(Bytes(bpxf))
+	Value.Write([]byte(SPLIT))
 	Value.Write(Join(fieldsBytes, dni.fields))
 	return Value.Bytes()
 }
@@ -230,7 +215,7 @@ type DefaultFullTextIndex struct {
 
 func DefaultFullTextIndexNew() *DefaultFullTextIndex {
 	return &DefaultFullTextIndex{
-		name: "ft",
+		name: "FullText",
 	}
 }
 func (dfi *DefaultFullTextIndex) GetFields() []string {
@@ -276,17 +261,19 @@ func (dfi *DefaultFullTextIndex) Tokenize(nr string, ftlen int) (tokens []string
 	return
 }
 
-// 仅用于搜索时的前缀。put时拼接key的值使用JoinFullValues
+// 普通拼接，用于索引时的前缀拼接
 func (dfi *DefaultFullTextIndex) JoinValue(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
 	if !exist(dfi.fields, existFields...) {
 		return nil
 	}
-	bpxf := JoinAndEscapeToBytes(pfx, dfi.Prefix()) //通常就是表明和索引名拼接
+	bpxf := JoinAndEscapeToBytes(pfx, dfi.Prefix())
 	var Value bytes.Buffer
-	if bpxf != nil {
-		Value.Write(Bytes(bpxf))
+	if pfx != "" {
+		Value.Write(Bytes([]byte(pfx)).Escape())
 		Value.Write([]byte(SPLIT))
 	}
+	Value.Write(Bytes(bpxf))
+	Value.Write([]byte(SPLIT))
 	Value.Write(Join(fieldsBytes, dfi.fields))
 	return Value.Bytes()
 }
@@ -304,8 +291,9 @@ func JoinAndEscapeToBytes(v ...string) []byte {
 	return Value.Bytes()
 }
 
-// put时拼接key的值
-// 全文索引考据级别的切词算法。
+// 拼接全文索引值，最后都会将主键值拼接在最后,kv: 键值对里，value是nil.。
+// 解析时需要全文索引值中分解出主键值，所以所有的拼接值都需要转义。
+// 搜索词也需要转义，否则无法匹配。
 func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, pfx string, existFields ...string) [][]byte {
 	if !exist(dfi.fields, existFields...) {
 		return nil
@@ -379,7 +367,6 @@ func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, 
 	}
 	return r
 }
-
 func (dfi *DefaultFullTextIndex) MatchFields(fields ...string) bool {
 	return Match(fields, dfi.fields...)
 }

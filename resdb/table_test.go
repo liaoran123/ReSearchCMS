@@ -764,7 +764,7 @@ func TestTableSearch(t *testing.T) {
 */
 // 测试组合主键搜索
 func TestCompositePrimaryKeySearch(t *testing.T) {
-	table, err := TableNew("article")
+	table, err := TableNew("art")
 	if err != nil {
 		t.Fatalf("TableNew 失败: %v", err)
 	}
@@ -836,9 +836,9 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 		fmt.Printf("iter.Key(): %v,iter.Value(): %v\n", string(iter.Key()), string(iter.Value()))
 	}
 
-	dataIter := table.SearchToDataIter(&fields1)
+	dataIter, err := table.Search(&fields1)
 	if dataIter.iter == nil {
-		t.Fatalf("SearchToDataIter 失败: %v", err)
+		t.Fatalf("Search 失败: %v", err)
 	}
 	defer dataIter.Release()
 	records := dataIter.GerRecords(true)
@@ -849,9 +849,9 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 		fields2 := map[string]any{
 			"content": "文章内容22",
 		}
-		dataIter = table.SearchToDataIter(&fields2)
+		dataIter, err := table.Search(&fields2)
 		if dataIter.iter == nil {
-			t.Fatalf("SearchToDataIter 失败: %v", err)
+			t.Fatalf("Search 失败: %v", err)
 		}
 		defer dataIter.Release()
 		records1 := dataIter.GerRecords(true)

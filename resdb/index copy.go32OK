@@ -379,7 +379,6 @@ func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, 
 	}
 	return r
 }
-
 func (dfi *DefaultFullTextIndex) MatchFields(fields ...string) bool {
 	return Match(fields, dfi.fields...)
 }

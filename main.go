@@ -1,11 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 )
 
 func main() {
 	fmt.Println("考据级文档搜索引擎!免费版有广告，付费版无广告，企业版提供多维分析统计功能。")
+	btoken := []byte("token")
+	ftpxf := []byte(nil)
+
+	a := bytes.Join([][]byte{ftpxf, btoken}, []byte(nil))
+	fmt.Println(string(a))
 	//files.TraversePathAndReadFiles("D:\\MyGo\\src\\sfsApp\\qldzj")
 	/*
 		files.TraversePathAndReadFiles("E:\\书")

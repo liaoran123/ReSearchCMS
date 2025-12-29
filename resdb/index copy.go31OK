@@ -98,8 +98,6 @@ func exist(fields []string, existFields ...string) bool {
 	}
 	return false
 }
-
-// 用于put时拼接key的值和搜索时的前缀
 func (dpk *DefaultPrimaryKey) JoinValue(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
 	if !exist(dpk.fields, existFields...) {
 		return nil
@@ -183,8 +181,6 @@ func Join(fieldsBytes *map[string][]byte, fields []string, existFields ...string
 	}
 	return Value.Bytes()
 }
-
-// 用于put时拼接key的值和搜索时的前缀
 func (dni *DefaultNormalIndex) JoinValue(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
 	if !exist(dni.fields, existFields...) {
 		return nil
@@ -276,7 +272,7 @@ func (dfi *DefaultFullTextIndex) Tokenize(nr string, ftlen int) (tokens []string
 	return
 }
 
-// 仅用于搜索时的前缀。put时拼接key的值使用JoinFullValues
+// 普通拼接，用于索引时的前缀拼接
 func (dfi *DefaultFullTextIndex) JoinValue(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte {
 	if !exist(dfi.fields, existFields...) {
 		return nil
@@ -304,8 +300,9 @@ func JoinAndEscapeToBytes(v ...string) []byte {
 	return Value.Bytes()
 }
 
-// put时拼接key的值
-// 全文索引考据级别的切词算法。
+// 拼接全文索引值，最后都会将主键值拼接在最后,kv: 键值对里，value是nil.。
+// 解析时需要全文索引值中分解出主键值，所以所有的拼接值都需要转义。
+// 搜索词也需要转义，否则无法匹配。
 func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, pfx string, existFields ...string) [][]byte {
 	if !exist(dfi.fields, existFields...) {
 		return nil
@@ -379,7 +376,6 @@ func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, 
 	}
 	return r
 }
-
 func (dfi *DefaultFullTextIndex) MatchFields(fields ...string) bool {
 	return Match(fields, dfi.fields...)
 }
