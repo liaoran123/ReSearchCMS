@@ -7,7 +7,7 @@ type DbHandler interface {
 type ParseFun func(table *Table, value []byte) any
 
 //通过主键和索引返回记录，只有2种情况。
-type RecordGetFun func(table *Table, value []byte, fieldParseFunc ...FieldParseFunc) Record
+type GetRecordFun func(table *Table, value []byte, fieldParseFunc ...FieldParseFunc) Record
 
 // 解析索引记录
 // 组合主键需要反转义
@@ -17,7 +17,7 @@ type RecordGetFun func(table *Table, value []byte, fieldParseFunc ...FieldParseF
 
 //ByIndexGet=ByIndex.Get 两种方式都可
 //简单直接函数类型ByIndexGet，需要外部数据组合操作，才需要使用结构。
-func ByIndexGet(t *Table, v []byte, fieldParseFunc ...FieldParseFunc) Record {
+func ByIndexGetRecord(t *Table, v []byte, fieldParseFunc ...FieldParseFunc) Record {
 	value := v
 	if len(t.primaryKey.GetFields()) > 1 { //只有组合主键才需要转义
 		value = Bytes(v).UnEscape()
@@ -37,7 +37,7 @@ func ByIndexGet(t *Table, v []byte, fieldParseFunc ...FieldParseFunc) Record {
 
 // 解析主键记录
 //ByPrimaryGet=ByPrimary.Get 两种方式都可
-func ByPrimaryGet(t *Table, v []byte, fieldParseFunc ...FieldParseFunc) Record {
+func ByPrimaryGetRecord(t *Table, v []byte, fieldParseFunc ...FieldParseFunc) Record {
 	rd := Record(t.ParseRecordValue(v))
 	for _, fieldParseFunc := range fieldParseFunc {
 		fieldParseFunc(&rd)

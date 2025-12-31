@@ -67,13 +67,18 @@ func (bi *BaseIndex) GetFields() []string {
 func (bi *BaseIndex) AddFields(field ...string) {
 	bi.fields = append(bi.fields, field...)
 }
-func JoinAndToBytes(v ...string) []byte {
+
+func JoinAndEscapeToBytes(Escape bool, v ...string) []byte {
 	var Value bytes.Buffer
 	for i, fit := range v {
 		if fit == "" {
 			continue
 		}
-		Value.Write([]byte(fit))
+		if Escape {
+			Value.Write(Bytes([]byte(fit)).Escape())
+		} else {
+			Value.Write([]byte(fit))
+		}
 		if i < len(v)-1 {
 			Value.Write([]byte(SPLIT))
 		}
@@ -81,27 +86,8 @@ func JoinAndToBytes(v ...string) []byte {
 	return Value.Bytes()
 }
 
-/*
-	func JoinAndEscapeToBytes(Escape bool, v ...string) []byte {
-		var Value bytes.Buffer
-		for i, fit := range v {
-			if fit == "" {
-				continue
-			}
-			if Escape {
-				Value.Write(Bytes([]byte(fit)).Escape())
-			} else {
-				Value.Write([]byte(fit))
-			}
-			if i < len(v)-1 {
-				Value.Write([]byte(SPLIT))
-			}
-		}
-		return Value.Bytes()
-	}
-*/
 func (bi *BaseIndex) Prefix(tbname string) []byte {
-	return JoinAndToBytes(tbname, bi.name)
+	return JoinAndEscapeToBytes(len(bi.fields) > 1, tbname, bi.name)
 }
 
 // 存在某个字段
@@ -126,14 +112,15 @@ func Join(fieldsBytes *map[string][]byte, fields []string, existFields ...string
 		return nil
 	}
 	var Value bytes.Buffer
-	for _, fit := range fields {
+	for i, fit := range fields {
 		if v, ok := (*fieldsBytes)[fit]; ok {
+			v = Bytes(v).Escape()
 			Value.Write(v)
-			Value.Write([]byte(SPLIT))
+			if i < len(fields)-1 {
+				Value.Write([]byte(SPLIT))
+			}
 		}
 	}
-	//删除最后一个分隔符
-	Value.Truncate(Value.Len() - 1)
 	return Value.Bytes()
 }
 
@@ -142,7 +129,7 @@ func (bi *BaseIndex) JoinValue(fieldsBytes *map[string][]byte, tbname string, ex
 		return nil
 	}
 	var Value bytes.Buffer
-	bpxf := JoinAndToBytes(tbname, bi.name) //通常就是表明和索引名拼接
+	bpxf := JoinAndEscapeToBytes(len(bi.fields) > 1, tbname, bi.name) //通常就是表明和索引名拼接
 	if bpxf != nil {
 		Value.Write(Bytes(bpxf))
 		Value.Write([]byte(SPLIT))
@@ -169,7 +156,12 @@ func (bi *BaseIndex) MatchFields(fields ...string) bool {
 // 主键接口，嵌入基础索引接口
 type PrimaryKey interface {
 	Index
+	// 获取主键ID
+	//ID() []byte
+	// 获取主键字段数量
+
 	// 设置主键ID
+	//SetID(fieldsBytes *map[string][]byte)
 	GetID(fieldsBytes *map[string][]byte, existFields ...string) []byte
 }
 
@@ -187,18 +179,45 @@ func DefaultPrimaryKeyNew(name string) *DefaultPrimaryKey {
 	}
 }
 
+/*
+	func (dpk *DefaultPrimaryKey) Prefix(tbname string) []byte {
+		return JoinAndEscapeToBytes(len(dpk.fields) > 1, tbname, dpk.name)
+	}
+
+	func (dpk *DefaultPrimaryKey) GetFields() []string {
+		return dpk.fields
+	}
+
+	func (dpk *DefaultPrimaryKey) AddFields(field ...string) {
+		dpk.fields = append(dpk.fields, field...)
+	}
+
+	func (dpk *DefaultPrimaryKey) Name() string {
+		return dpk.name
+	}
+*/
+
+/*
+func (dpk *DefaultPrimaryKey) MatchFields(fields ...string) bool {
+	return Match(dpk.fields, fields...)
+}
+func (dpk *DefaultPrimaryKey) Len() int {
+	return len(dpk.fields)
+}
+*/
+
 // 過濾存在的字段
 // 系統設計爲過濾key存在的字段不在value中儲存。
-func (dpk *DefaultPrimaryKey) GetID(fieldsBytes *map[string][]byte, existFields ...string) []byte {
+func (dpk *DefaultPrimaryKey) GetID(fieldsBytes *map[string][]byte, FilterFields ...string) []byte {
 	var Value bytes.Buffer
 	for i, fit := range dpk.fields {
-		if slices.Contains(existFields, fit) {
+		if slices.Contains(FilterFields, fit) {
 			continue
 		}
-		fieldlen := len(dpk.fields)
 		if v, ok := (*fieldsBytes)[fit]; ok {
+			v = Bytes(v).Escape()
 			Value.Write(v)
-			if i < fieldlen-1 {
+			if i < len(dpk.fields)-1 {
 				Value.Write([]byte(SPLIT))
 			}
 		}
@@ -230,8 +249,6 @@ func DefaultNormalIndexNew(name string) *DefaultNormalIndex {
 // 全文索引接口，嵌入基础索引接口
 type FullTextIndex interface {
 	Index
-	SetFullField(field string, len int) error
-	GetFtlen(fields ...string) int
 	// 拼接全文索引值
 	JoinFullValues(fieldsBytes *map[string][]byte, tbname string, existFields ...string) [][]byte
 	// 分词方法
@@ -259,14 +276,6 @@ func DefaultFullTextIndexNew() *DefaultFullTextIndex {
 		},
 	}
 }
-func (dfi *DefaultFullTextIndex) GetFtlen(fields ...string) int {
-	for _, ftfit := range dfi.ftfields {
-		if slices.Contains(fields, ftfit.Fields) {
-			return ftfit.Len
-		}
-	}
-	return 5
-}
 
 // 指定那个字段是全文索引字段，以及索引长度
 func (dfi *DefaultFullTextIndex) SetFullField(field string, len int) error {
@@ -279,31 +288,6 @@ func (dfi *DefaultFullTextIndex) SetFullField(field string, len int) error {
 		Len:    len,
 	})
 	return nil
-}
-
-// 调用基类JoinValue
-func (dfi *DefaultFullTextIndex) JoinValue(fieldsBytes *map[string][]byte, tbname string, existFields ...string) []byte {
-	if !exist(dfi.fields, existFields...) {
-		return nil
-	}
-	for _, ftfit := range dfi.ftfields {
-		if v, ok := (*fieldsBytes)[ftfit.Fields]; ok {
-			//将转换为string中文，如果长度大于ftlen个字符，则截取前ftlen个字符
-			if len([]rune(string(v))) > int(ftfit.Len) {
-				(*fieldsBytes)[ftfit.Fields] = []byte(string([]rune(string(v))[:ftfit.Len]))
-			}
-		}
-	}
-	var Value bytes.Buffer
-	bpxf := JoinAndToBytes(tbname, dfi.name) //通常就是表明和索引名拼接
-	if bpxf != nil {
-		Value.Write(Bytes(bpxf))
-		Value.Write([]byte(SPLIT))
-	}
-	Value.Write(Join(fieldsBytes, dfi.fields))
-	//rvalue := Value.Bytes()
-	//rvalue = rvalue[:len(rvalue)-1] //全文索引是like不能与其他索引一样，后面的SPLIT要去掉
-	return Value.Bytes()
 }
 func (dfi *DefaultFullTextIndex) Tokenize(nr string, ftlen int) (tokens []string) {
 	tokens = GetStringSlice()
@@ -325,7 +309,6 @@ func (dfi *DefaultFullTextIndex) Tokenize(nr string, ftlen int) (tokens []string
 
 // put时拼接key的值
 // 全文索引考据级别的切词算法。
-// 只有全文索引才需要转义
 func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, tbname string, existFields ...string) [][]byte {
 	if !exist(dfi.fields, existFields...) {
 		return nil
@@ -335,7 +318,7 @@ func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, 
 	var fieldValue []byte
 	var exists bool
 	curpfx := GetBytesArray()
-	ftpxf := JoinAndToBytes(tbname, dfi.name)
+	ftpxf := JoinAndEscapeToBytes(len(dfi.fields) > 1, tbname, dfi.name)
 	var isnil bool
 	for _, fit := range dfi.fields {
 		// 获取字段的实际值
@@ -400,3 +383,9 @@ func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, 
 	}
 	return r
 }
+
+/*
+func (dfi *DefaultFullTextIndex) MatchFields(fields ...string) bool {
+	return Match(fields, dfi.fields...)
+}
+*/

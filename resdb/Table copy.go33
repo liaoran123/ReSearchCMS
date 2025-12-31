@@ -120,6 +120,33 @@ func (t *Table) MaxAutoValue() int {
 
 }
 
+/*
+func (t *Table) MaxAutoValue() int {
+	//key := []byte(t.name + SPLIT + t.primaryKey.Name() + SPLIT)
+	key := t.primaryKey.Prefix(t.name)
+	key = append(key, []byte(SPLIT)...)
+	iter := t.rsdb.GetIterator(key)
+	defer iter.Release()
+	var rkey []byte
+	if iter.Last() {
+		rkey = iter.Key()
+	} else {
+		return 0
+	}
+	rkey = rkey[len(key):]
+	var target any
+	// 如果主键字段为空，默认使用"id"
+	if len(t.primaryKey.GetFields()) == 0 || t.primaryKey.GetFields()[0] == "" {
+		target = 0
+	} else {
+		target = t.fields[t.primaryKey.GetFields()[0]]
+	}
+	r := Bytes(rkey).ToAny(target)
+	// 使用 reflect 包进行类型转换，更灵活地处理各种数值类型
+	return AnyToInt(r)
+
+}
+*/
 // 必须先为表预设字段和类型
 func (t *Table) SetFields(fields map[string]any) error {
 	//检查fields，不能包含分隔符
@@ -195,7 +222,7 @@ func (t *Table) CheckType(fields *map[string]any) error {
 	return nil
 }
 
-// 将数据转换为字节数组，该合适添加时用。搜索时nil值不能更改
+// 将数据转换为字节数组
 func (t *Table) FieldsToBytes(fields *map[string]any) map[string][]byte {
 	result := make(map[string][]byte, len(*fields))
 	for k, v := range *fields {
@@ -309,6 +336,7 @@ func (t *Table) Operation(fieldsBytes map[string][]byte, record []byte, batch *l
 
 // 格式化记录
 // 過濾存在的字段
+// 系統設計爲過濾key存在的字段不在value中儲存，以減少記錄大小。
 func (t *Table) FormatRecord(fieldsBytes *map[string][]byte, FilterFields ...string) (r []byte) {
 	var buf bytes.Buffer
 	var value []byte
@@ -327,6 +355,16 @@ func (t *Table) FormatRecord(fieldsBytes *map[string][]byte, FilterFields ...str
 	//删除最后一个分隔符
 	buf.Truncate(buf.Len() - 1)
 	return buf.Bytes()
+}
+
+// 在原来的记录基础上追加字段和值
+func (t *Table) FormatRecordAppend(record []byte, fieldname string, fieldvalue []byte) (r []byte) {
+	r = record
+	r = append(r, Bytes(fieldname).Escape()...)
+	r = append(r, ':')
+	r = append(r, Bytes(fieldvalue).Escape()...)
+	r = append(r, SPLIT...)
+	return r
 }
 
 // 反序列化记录
@@ -520,15 +558,6 @@ func (t *Table) MatchIndex(fields ...string) Index {
 	}
 	return nil
 }
-
-// 将数据转换为字节数组，该合适搜索时用。搜索时nil值不能更改,否则导致结果错误
-func (t *Table) FieldsToBytesNil(fields *map[string]any) map[string][]byte {
-	result := make(map[string][]byte, len(*fields))
-	for k, v := range *fields {
-		result[k] = AnyToBytes(v)
-	}
-	return result
-}
 func (t *Table) Search(fields *map[string]any) (*TableIter, error) {
 	var field []string
 	for k := range *fields {
@@ -542,17 +571,18 @@ func (t *Table) Search(fields *map[string]any) (*TableIter, error) {
 	idx := t.MatchIndex(field...)
 	var key []byte
 	if idx != nil {
-		fieldsBytes := t.FieldsToBytesNil(fields)
+		fieldsBytes := t.FieldsToBytes(fields)
 		key = idx.JoinValue(&fieldsBytes, t.name)
 	} else {
-		//没有索引，则设置为全表主键扫描迭代器
-		idx = t.primaryKey
-		key = t.primaryKey.Prefix(t.name)
-
+		/*
+			//没有索引，则全表扫描
+			idx = t.primaryKey
+			key = t.primaryKey.Prefix(t.name)
+		*/
 		/*
 			由于数据库定位全文索引，故不支持无索引的搜索
-
-		return nil, fmt.Errorf("表 '%s'没有匹配的'%s'索引", field[0], t.name)*/
+		*/
+		return nil, fmt.Errorf("表 '%s'没有匹配的'%s'索引", field[0], t.name)
 	}
 	iter := t.rsdb.GetIterator(key)
 	return TableIterNew(t, iter, idx), nil

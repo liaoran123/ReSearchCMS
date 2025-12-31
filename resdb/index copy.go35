@@ -14,7 +14,6 @@ type Index interface {
 	AddFields(field ...string)
 	// 获取索引字段列表
 	GetFields() []string
-	Len() int
 	// 获取索引前缀
 	Name() string
 	SetName(name string) error
@@ -34,74 +33,67 @@ type GetFields func() []string
 type JoinValue func(fieldsBytes *map[string][]byte, pfx string, existFields ...string) []byte
 type MatchFields func(fields ...string) bool
 */
-
 // ------------------------------------------
-// 基础索引结构体，包含所有索引类型共有的字段和方法
-type BaseIndex struct {
-	fields []string
-	name   string
+// 主键接口，嵌入基础索引接口
+type PrimaryKey interface {
+	Index
+	// 获取主键ID
+	//ID() []byte
+	// 获取主键字段数量
+	Len() int
+	// 设置主键ID
+	//SetID(fieldsBytes *map[string][]byte)
+	GetID(fieldsBytes *map[string][]byte, existFields ...string) []byte
 }
 
-// 基础索引的通用方法
-func (bi *BaseIndex) SetName(name string) error {
+// ------------------------------------------
+// 默认主键索引
+type DefaultPrimaryKey struct {
+	fields []string // 主键字段列表，数组，即是支持单主键，也支持组合主键
+	//id     []byte
+	name string
+}
+
+func DefaultPrimaryKeyNew() *DefaultPrimaryKey {
+	return &DefaultPrimaryKey{
+		name: "pk",
+	}
+}
+func (dpk *DefaultPrimaryKey) SetName(name string) error {
 	//不能包含SPLIT
 	if strings.Contains(name, SPLIT) {
 		return errors.New("name can not contain SPLIT")
 	}
-	bi.name = name
+	dpk.name = name
 	return nil
 }
-
-func (bi *BaseIndex) Name() string {
-	return bi.name
+func (dpk *DefaultPrimaryKey) Prefix(tbname string) []byte {
+	return JoinAndEscapeToBytes(len(dpk.fields) > 1, tbname, dpk.name)
 }
-
-func (bi *BaseIndex) Len() int {
-	return len(bi.fields)
+func (dpk *DefaultPrimaryKey) GetFields() []string {
+	return dpk.fields
 }
-
-func (bi *BaseIndex) GetFields() []string {
-	return bi.fields
+func (dpk *DefaultPrimaryKey) AddFields(field ...string) {
+	dpk.fields = append(dpk.fields, field...)
 }
-
-func (bi *BaseIndex) AddFields(field ...string) {
-	bi.fields = append(bi.fields, field...)
+func (dpk *DefaultPrimaryKey) Name() string {
+	return dpk.name
 }
-func JoinAndToBytes(v ...string) []byte {
-	var Value bytes.Buffer
-	for i, fit := range v {
-		if fit == "" {
-			continue
-		}
-		Value.Write([]byte(fit))
-		if i < len(v)-1 {
-			Value.Write([]byte(SPLIT))
+func Match(fields []string, existFields ...string) bool {
+	count := 0
+	for _, fit := range fields {
+		//判断是否存在切片中
+		if slices.Contains(existFields, fit) {
+			count++
 		}
 	}
-	return Value.Bytes()
+	return count == len(existFields) //兼容匹配，主键字段可以少于索引字段
 }
-
-/*
-	func JoinAndEscapeToBytes(Escape bool, v ...string) []byte {
-		var Value bytes.Buffer
-		for i, fit := range v {
-			if fit == "" {
-				continue
-			}
-			if Escape {
-				Value.Write(Bytes([]byte(fit)).Escape())
-			} else {
-				Value.Write([]byte(fit))
-			}
-			if i < len(v)-1 {
-				Value.Write([]byte(SPLIT))
-			}
-		}
-		return Value.Bytes()
-	}
-*/
-func (bi *BaseIndex) Prefix(tbname string) []byte {
-	return JoinAndToBytes(tbname, bi.name)
+func (dpk *DefaultPrimaryKey) MatchFields(fields ...string) bool {
+	return Match(dpk.fields, fields...)
+}
+func (dpk *DefaultPrimaryKey) Len() int {
+	return len(dpk.fields)
 }
 
 // 存在某个字段
@@ -118,87 +110,33 @@ func exist(fields []string, existFields ...string) bool {
 	return false
 }
 
-// 系统对kv数据库优化设计，将已经存在key值索引数据，从value中略去。使用时再重新分解拼接。
-// 所有拼接数据都要进行转义
-// 添加匹配字段功能
-func Join(fieldsBytes *map[string][]byte, fields []string, existFields ...string) []byte {
-	if !exist(fields, existFields...) {
+// 用于put时拼接key的值和搜索时的前缀
+func (dpk *DefaultPrimaryKey) JoinValue(fieldsBytes *map[string][]byte, tbname string, existFields ...string) []byte {
+	if !exist(dpk.fields, existFields...) {
 		return nil
 	}
 	var Value bytes.Buffer
-	for _, fit := range fields {
-		if v, ok := (*fieldsBytes)[fit]; ok {
-			Value.Write(v)
-			Value.Write([]byte(SPLIT))
-		}
-	}
-	//删除最后一个分隔符
-	Value.Truncate(Value.Len() - 1)
-	return Value.Bytes()
-}
-
-func (bi *BaseIndex) JoinValue(fieldsBytes *map[string][]byte, tbname string, existFields ...string) []byte {
-	if !exist(bi.fields, existFields...) {
-		return nil
-	}
-	var Value bytes.Buffer
-	bpxf := JoinAndToBytes(tbname, bi.name) //通常就是表明和索引名拼接
+	bpxf := JoinAndEscapeToBytes(len(dpk.fields) > 1, tbname, dpk.name) //通常就是表明和索引名拼接
 	if bpxf != nil {
 		Value.Write(Bytes(bpxf))
 		Value.Write([]byte(SPLIT))
 	}
-	Value.Write(Join(fieldsBytes, bi.fields))
+	Value.Write(Join(fieldsBytes, dpk.fields))
 	return Value.Bytes()
-}
-
-func Match(fields []string, existFields ...string) bool {
-	count := 0
-	for _, fit := range fields {
-		//判断是否存在切片中
-		if slices.Contains(existFields, fit) {
-			count++
-		}
-	}
-	return count == len(existFields) //兼容匹配，主键字段可以少于索引字段
-}
-func (bi *BaseIndex) MatchFields(fields ...string) bool {
-	return Match(bi.fields, fields...)
-}
-
-// ------------------------------------------
-// 主键接口，嵌入基础索引接口
-type PrimaryKey interface {
-	Index
-	// 设置主键ID
-	GetID(fieldsBytes *map[string][]byte, existFields ...string) []byte
-}
-
-// ------------------------------------------
-// 默认主键索引
-type DefaultPrimaryKey struct {
-	BaseIndex // 嵌入基础索引
-}
-
-func DefaultPrimaryKeyNew(name string) *DefaultPrimaryKey {
-	return &DefaultPrimaryKey{
-		BaseIndex: BaseIndex{
-			name: name,
-		},
-	}
 }
 
 // 過濾存在的字段
 // 系統設計爲過濾key存在的字段不在value中儲存。
-func (dpk *DefaultPrimaryKey) GetID(fieldsBytes *map[string][]byte, existFields ...string) []byte {
+func (dpk *DefaultPrimaryKey) GetID(fieldsBytes *map[string][]byte, FilterFields ...string) []byte {
 	var Value bytes.Buffer
 	for i, fit := range dpk.fields {
-		if slices.Contains(existFields, fit) {
+		if slices.Contains(FilterFields, fit) {
 			continue
 		}
-		fieldlen := len(dpk.fields)
 		if v, ok := (*fieldsBytes)[fit]; ok {
+			v = Bytes(v).Escape()
 			Value.Write(v)
-			if i < fieldlen-1 {
+			if i < len(dpk.fields)-1 {
 				Value.Write([]byte(SPLIT))
 			}
 		}
@@ -215,23 +153,79 @@ type NormalIndex interface {
 // ------------------------------------------
 // 默认普通索引
 type DefaultNormalIndex struct {
-	BaseIndex // 嵌入基础索引
+	fields []string
+	name   string
 }
 
-func DefaultNormalIndexNew(name string) *DefaultNormalIndex {
+func DefaultNormalIndexNew() *DefaultNormalIndex {
 	return &DefaultNormalIndex{
-		BaseIndex: BaseIndex{
-			name: name,
-		},
+		name: "idx",
 	}
+}
+func (dni *DefaultNormalIndex) SetName(name string) error {
+	//不能包含SPLIT
+	if strings.Contains(name, SPLIT) {
+		return errors.New("name can not contain SPLIT")
+	}
+	dni.name = name
+	return nil
+}
+func (dni *DefaultNormalIndex) Name() string {
+	return dni.name
+}
+func (dni *DefaultNormalIndex) Prefix(tbname string) []byte {
+	return JoinAndEscapeToBytes(len(dni.fields) > 1, tbname, dni.name)
+}
+func (dni *DefaultNormalIndex) GetFields() []string {
+	return dni.fields
+}
+func (dni *DefaultNormalIndex) AddFields(field ...string) {
+	dni.fields = append(dni.fields, field...)
+}
+
+// 系统对kv数据库优化设计，将已经存在key值索引数据，从value中略去。使用时再重新分解拼接。
+// 所有拼接数据都要进行转义
+// 添加匹配字段功能
+func Join(fieldsBytes *map[string][]byte, fields []string, existFields ...string) []byte {
+	if !exist(fields, existFields...) {
+		return nil
+	}
+	var Value bytes.Buffer
+	for i, fit := range fields {
+		if v, ok := (*fieldsBytes)[fit]; ok {
+			v = Bytes(v).Escape()
+			Value.Write(v)
+			if i < len(fields)-1 {
+				Value.Write([]byte(SPLIT))
+			}
+		}
+	}
+	return Value.Bytes()
+}
+
+// 用于put时拼接key的值和搜索时的前缀
+func (dni *DefaultNormalIndex) JoinValue(fieldsBytes *map[string][]byte, tbname string, existFields ...string) []byte {
+	if !exist(dni.fields, existFields...) {
+		return nil
+	}
+	var Value bytes.Buffer
+	bpxf := JoinAndEscapeToBytes(len(dni.fields) > 1, tbname, dni.name) //通常就是表明和索引名拼接
+	if bpxf != nil {
+		Value.Write(Bytes(bpxf))
+		Value.Write([]byte(SPLIT))
+	}
+	Value.Write(Join(fieldsBytes, dni.fields))
+	return Value.Bytes()
+}
+
+func (dni *DefaultNormalIndex) MatchFields(fields ...string) bool {
+	return Match(dni.fields, fields...)
 }
 
 // ------------------------------------------
 // 全文索引接口，嵌入基础索引接口
 type FullTextIndex interface {
 	Index
-	SetFullField(field string, len int) error
-	GetFtlen(fields ...string) int
 	// 拼接全文索引值
 	JoinFullValues(fieldsBytes *map[string][]byte, tbname string, existFields ...string) [][]byte
 	// 分词方法
@@ -248,24 +242,35 @@ type FullTextIndexField struct {
 // ------------------------------------------
 // 默认全文索引
 type DefaultFullTextIndex struct {
-	BaseIndex                      // 嵌入基础索引
-	ftfields  []FullTextIndexField // 全文索引字段列表
+	fields   []string
+	ftfields []FullTextIndexField
+	name     string
 }
 
 func DefaultFullTextIndexNew() *DefaultFullTextIndex {
 	return &DefaultFullTextIndex{
-		BaseIndex: BaseIndex{
-			name: "ft",
-		},
+		name: "ft",
 	}
 }
-func (dfi *DefaultFullTextIndex) GetFtlen(fields ...string) int {
-	for _, ftfit := range dfi.ftfields {
-		if slices.Contains(fields, ftfit.Fields) {
-			return ftfit.Len
-		}
+func (dfi *DefaultFullTextIndex) GetFields() []string {
+	return dfi.fields
+}
+func (dfi *DefaultFullTextIndex) SetName(name string) error {
+	//不能包含SPLIT
+	if strings.Contains(name, SPLIT) {
+		return errors.New("name can not contain SPLIT")
 	}
-	return 5
+	dfi.name = name
+	return nil
+}
+func (dfi *DefaultFullTextIndex) Name() string {
+	return dfi.name
+}
+func (dfi *DefaultFullTextIndex) Prefix(tbname string) []byte {
+	return JoinAndEscapeToBytes(len(dfi.fields) > 1, tbname, dfi.name)
+}
+func (dfi *DefaultFullTextIndex) AddFields(field ...string) {
+	dfi.fields = append(dfi.fields, field...)
 }
 
 // 指定那个字段是全文索引字段，以及索引长度
@@ -279,31 +284,6 @@ func (dfi *DefaultFullTextIndex) SetFullField(field string, len int) error {
 		Len:    len,
 	})
 	return nil
-}
-
-// 调用基类JoinValue
-func (dfi *DefaultFullTextIndex) JoinValue(fieldsBytes *map[string][]byte, tbname string, existFields ...string) []byte {
-	if !exist(dfi.fields, existFields...) {
-		return nil
-	}
-	for _, ftfit := range dfi.ftfields {
-		if v, ok := (*fieldsBytes)[ftfit.Fields]; ok {
-			//将转换为string中文，如果长度大于ftlen个字符，则截取前ftlen个字符
-			if len([]rune(string(v))) > int(ftfit.Len) {
-				(*fieldsBytes)[ftfit.Fields] = []byte(string([]rune(string(v))[:ftfit.Len]))
-			}
-		}
-	}
-	var Value bytes.Buffer
-	bpxf := JoinAndToBytes(tbname, dfi.name) //通常就是表明和索引名拼接
-	if bpxf != nil {
-		Value.Write(Bytes(bpxf))
-		Value.Write([]byte(SPLIT))
-	}
-	Value.Write(Join(fieldsBytes, dfi.fields))
-	//rvalue := Value.Bytes()
-	//rvalue = rvalue[:len(rvalue)-1] //全文索引是like不能与其他索引一样，后面的SPLIT要去掉
-	return Value.Bytes()
 }
 func (dfi *DefaultFullTextIndex) Tokenize(nr string, ftlen int) (tokens []string) {
 	tokens = GetStringSlice()
@@ -323,9 +303,40 @@ func (dfi *DefaultFullTextIndex) Tokenize(nr string, ftlen int) (tokens []string
 	return
 }
 
+// 仅用于搜索时的前缀。put时拼接key的值使用JoinFullValues
+func (dfi *DefaultFullTextIndex) JoinValue(fieldsBytes *map[string][]byte, tbname string, existFields ...string) []byte {
+	if !exist(dfi.fields, existFields...) {
+		return nil
+	}
+	bpxf := JoinAndEscapeToBytes(len(dfi.fields) > 1, tbname, dfi.name) //通常就是表明和索引名拼接
+	var Value bytes.Buffer
+	if bpxf != nil {
+		Value.Write(Bytes(bpxf))
+		Value.Write([]byte(SPLIT))
+	}
+	Value.Write(Join(fieldsBytes, dfi.fields))
+	return Value.Bytes()
+}
+func JoinAndEscapeToBytes(Escape bool, v ...string) []byte {
+	var Value bytes.Buffer
+	for i, fit := range v {
+		if fit == "" {
+			continue
+		}
+		if Escape {
+			Value.Write(Bytes([]byte(fit)).Escape())
+		} else {
+			Value.Write([]byte(fit))
+		}
+		if i < len(v)-1 {
+			Value.Write([]byte(SPLIT))
+		}
+	}
+	return Value.Bytes()
+}
+
 // put时拼接key的值
 // 全文索引考据级别的切词算法。
-// 只有全文索引才需要转义
 func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, tbname string, existFields ...string) [][]byte {
 	if !exist(dfi.fields, existFields...) {
 		return nil
@@ -335,7 +346,7 @@ func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, 
 	var fieldValue []byte
 	var exists bool
 	curpfx := GetBytesArray()
-	ftpxf := JoinAndToBytes(tbname, dfi.name)
+	ftpxf := JoinAndEscapeToBytes(len(dfi.fields) > 1, tbname, dfi.name)
 	var isnil bool
 	for _, fit := range dfi.fields {
 		// 获取字段的实际值
@@ -399,4 +410,8 @@ func (dfi *DefaultFullTextIndex) JoinFullValues(fieldsBytes *map[string][]byte, 
 		ftpxf = ftpxf[:0]
 	}
 	return r
+}
+
+func (dfi *DefaultFullTextIndex) MatchFields(fields ...string) bool {
+	return Match(fields, dfi.fields...)
 }

@@ -36,7 +36,7 @@ func TraversePathAndReadFiles(rootPath string) error {
 				return err
 			}
 			//查询url是否存在
-			iter := tables.Dir.SearchToDataIter(&map[string]any{
+			iter, err := tables.Dir.Search(&map[string]any{
 				"url": path,
 			})
 			defer iter.Release()

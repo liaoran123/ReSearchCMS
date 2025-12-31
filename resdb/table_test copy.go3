@@ -515,6 +515,252 @@ func compareStringSlices(a, b []string) bool {
 	return true
 }
 
+// TestTableSearch 测试表遍历数据和Search方法的功能
+func TestTableSearch(t *testing.T) {
+	// 创建测试表
+	table, err := TableNew("test_search")
+	if err != nil {
+		t.Fatalf("TableNew 失败: %v", err)
+	}
+	if table == nil {
+		t.Fatal("TableNew 失败")
+	}
+	// 必须先为表预设字段和数据类型
+	fields := map[string]any{"id": 0, "name": "", "age": uint8(0), "description": ""}
+	table.SetFields(fields)
+
+	table.SetPrimary([]string{"id"})
+	table.SetFullTextField("description")
+	table.AddIndex([]string{"name"})
+	table.AddIndex([]string{"name", "age"})
+	table.AddIndex([]string{"description"})
+	table.AddIndex([]string{"description", "age"})
+
+	// 插入测试数据
+	data := []map[string]any{
+		{"id": 1, "name": "六月", "age": uint8(25), "description": "古木阴阴六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+		{"id": 2, "name": "Bob", "age": uint8(30), "description": "Bob is a product manager"},
+		{"id": 3, "name": "Charlie", "age": uint8(35), "description": "Charlie is1 a designer"},
+		{"id": 4, "name": "David", "age": uint8(40), "description": "David isnot a developer"},
+		{"id": 5, "name": "Eve", "age": uint8(45), "description": "Eve is an manager"},
+		{"id": 6, "name": "Alice", "age": uint8(27), "description": "Alice is2 a software engineer"},
+		{"id": nil, "name": "Eve 49", "age": uint8(49), "description": "Eve is3 a manager 49"}, //"id": nil 使用自动增值
+		{"id": nil, "name": "Eve 55", "age": uint8(55), "description": "Eve is4 a manager 55"}, //"id": nil 使用自动增值
+	}
+	for _, item := range data {
+		fields := table.GetAllFields()
+		fields["id"] = item["id"]
+		fields["name"] = item["name"]
+		fields["age"] = item["age"]
+		fields["description"] = item["description"]
+		currentID, err := table.Insert(&fields)
+		if err != nil {
+			t.Fatalf("插入测试数据失败: %v", err)
+		}
+		if item["id"] == nil {
+			continue
+		}
+		if currentID != AnyToInt(item["id"]) {
+			t.Errorf("插入测试数据后，当前ID应为%v，实际: %d", AnyToInt(item["id"]), currentID)
+		}
+	}
+	//测试遍历表所有kv
+	t.Run("For", func(t *testing.T) {
+		dataIter := table.For()
+		for dataIter.Next() {
+			//fmt.Printf("dataIter.Key(): %v\n", dataIter.Key())
+			fmt.Printf("key: %s, value: %s\n", dataIter.Key(), dataIter.Value())
+			//val := table.ParseValue(dataIter.Value())
+			//fmt.Printf("val: %v\n", val)
+		}
+		dataIter.Release()
+	})
+	fmt.Println("-----------------")
+	// 测试遍历表所有数据
+	t.Run("ForData", func(t *testing.T) {
+		// 使用ForData方法遍历所有数据
+		dataIter := table.ForData()
+		for dataIter.Next() {
+			k, v := dataIter.Key(), dataIter.Value()
+			fmt.Printf("key: %s, value: %s\n", k, v)
+			if k == nil {
+				break
+			}
+		}
+
+		TableIter := TableIterNew(table, dataIter, &Indexs{kind: PrimaryKeyIndex, fields: table.primary})
+		if TableIter == nil {
+			t.Fatalf("TableIterNew 失败: %v", err)
+		}
+		records := TableIter.GerRecords(true)
+		for _, item := range records {
+			fmt.Printf("records: %v\n", item)
+		}
+		//fmt.Printf("results: %v\n", results)
+		dataIter.Release()
+	})
+	// 测试1: 主键搜索
+	t.Run("PrimaryKeySearch", func(t *testing.T) {
+		// 使用Search方法搜索主键为3的记录
+		fields := map[string]any{
+			"id": 1,
+		}
+		dataIter := table.SearchToDataIter(&fields)
+		if dataIter == nil {
+			t.Fatalf("SearchToDataIter 失败: %v", err)
+		}
+		records := dataIter.GerRecords(true)
+		fmt.Printf("records: %v\n", records)
+		//判断data[0]和records是否相等
+		if records[0][table.primary[0]] != data[0]["id"] {
+			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["id"], records[0][table.primary[0]])
+		}
+		if records[0]["name"] != data[0]["name"] {
+			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["name"], records[0]["name"])
+		}
+		if records[0]["age"] != data[0]["age"] {
+			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["age"], records[0]["age"])
+		}
+		if records[0]["description"] != data[0]["description"] {
+			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["description"], records[0]["description"])
+		}
+
+	})
+
+	// 测试2: 索引字段搜索
+	t.Run("IndexSearch", func(t *testing.T) {
+		// 使用Search方法搜索name为"Charlie"的记录
+		fields := map[string]any{
+			"name": "Charlie",
+		}
+		dataIter := table.SearchToDataIter(&fields)
+		if dataIter == nil {
+			t.Fatalf("SearchToDataIter 失败: %v", err)
+		}
+		defer dataIter.Release()
+		records := dataIter.GerRecords(true)
+		for _, item := range records {
+			fmt.Printf("records: %v\n", item)
+		}
+		if records[0][table.primary[0]] != data[2]["id"] {
+			t.Errorf("搜索name为Charlie的记录错误，期望: %v, 实际: %v", data[2]["id"], records[0][table.primary[0]])
+		}
+	})
+
+	// 测试3: 全文索引搜索
+	t.Run("FullTextSearch", func(t *testing.T) {
+		// 使用Search方法搜索description包含"Bob"的记录
+		fields := map[string]any{
+			"description": "Bob",
+		}
+		dataIter := table.SearchToDataIter(&fields)
+		if dataIter == nil {
+			t.Fatalf("SearchToDataIter 失败: %v", err)
+		}
+		defer dataIter.Release()
+		records := dataIter.GerRecords(true)
+		for _, item := range records {
+			fmt.Printf("records: %v\n", item)
+		}
+		if records[0][table.primary[0]] != data[1]["id"] {
+			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary[0]])
+		}
+		sdata := []map[string]any{
+			{"description": "古木阴阴六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+			{"description": "六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+			{"description": "幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+			{"description": "藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+			{"description": "——裘万顷《次余仲庸松风阁韵十九首其三》"},
+			{"description": "次余仲庸松风阁韵十九首其三》"},
+			{"description": "十九首其三》"},
+			{"description": "。——裘万顷《次余仲庸松风阁韵十九首其三》"},
+		}
+		for _, item := range sdata {
+			fields := map[string]any{
+				"description": item["description"],
+			}
+			dataIter := table.SearchToDataIter(&fields)
+			if dataIter == nil {
+				t.Fatalf("SearchToDataIter 失败: %v", err)
+			}
+			defer dataIter.Release()
+
+			records := dataIter.GerRecords(true)
+			for _, item := range records {
+				fmt.Printf("搜索:%v -》 records: %v\n", fields["description"], item)
+			}
+			if records[0][table.primary[0]] != data[0]["id"] {
+				t.Errorf("全文索引搜索 description 包含Bob的记录错误，期望: %v, 实际: %v", data[0]["id"], records[0][table.primary[0]])
+			}
+			//判断data[1]和records是否相等
+		}
+
+		sdata1 := []map[string]any{
+			{"description": "Bob is a product manager"},
+			{"description": "is a product manager"},
+			{"description": "a product manager"},
+			{"description": "product manager"},
+			{"description": "ct ma"},
+			//{"description": "is"},
+			{"description": " a product manager"},
+			{"description": " product"},
+		}
+		for _, item := range sdata1 {
+			fields := map[string]any{
+				"description": item["description"],
+			}
+			dataIter := table.SearchToDataIter(&fields)
+			if dataIter.iter == nil {
+				t.Fatalf("SearchToDataIter 失败: %v", err)
+			}
+			defer dataIter.Release()
+
+			records := dataIter.GerRecords(true)
+			for _, item := range records {
+				fmt.Printf("搜索:%v -》 records: %v\n", fields["description"], item)
+			}
+			if records[0][table.primary[0]] != data[1]["id"] {
+				fmt.Printf("查询结果可能是多个: %v\n。但是测试并没有错误。", records)
+				//t.Errorf("全文索引搜索 description 包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary[0]])
+			}
+		}
+	})
+
+	// 测试4: 搜索不存在的数据
+	t.Run("SearchNonExistent", func(t *testing.T) {
+		fields := map[string]any{
+			"id": 100,
+		}
+		// 使用SearchToDataIter方法搜索不存在的id
+		dataIter := table.SearchToDataIter(&fields)
+		if dataIter.iter == nil {
+			t.Fatalf("SearchToDataIter 失败: %v", err)
+		}
+		defer dataIter.Release()
+		records := dataIter.GerRecords(true)
+		//判断data[1]和records是否相等
+		if len(records) != 0 {
+			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary[0]])
+		}
+	})
+
+	//打开所有记录
+	t.Run("SearchAll", func(t *testing.T) {
+		// 第一次搜索，缓存结果
+		fields := map[string]any{
+			"id": nil, // id=nil或空，将获取所有表记录
+		}
+		dataIter := table.SearchToDataIter(&fields)
+		if dataIter.iter == nil {
+			t.Fatalf("SearchToDataIter 失败: %v", err)
+		}
+		defer dataIter.Release()
+		records := dataIter.GerRecords(true)
+		for i, item := range records {
+			fmt.Printf("item %d: %v\n", i, item)
+		}
+	})
+}
 */
 // 测试组合主键搜索
 func TestCompositePrimaryKeySearch(t *testing.T) {
@@ -530,22 +776,26 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 		"content": "", //文章内容
 	}
 	table.SetFields(fields)
-	PrimaryKeys := DefaultPrimaryKeyNew("pk")
+	PrimaryKeys := DefaultPrimaryKeyNew()
 	PrimaryKeys.AddFields("mid", "secNo") //创建一个mid, secNo的组合主键
 	table.SetPrimaryKey(PrimaryKeys)      //将组合主键设置到表中
 
 	fullText := DefaultFullTextIndexNew()
-	//全文索引正常情况下必须带上主键，否则后面的关键词都被覆盖，失去全文索引的意义。
-	fullText.AddFields("content", "mid", "secNo")
+	/*
+		全文索引所有的值，系统都会自动将主键值拼接在最后。
+		fullText.AddFields("content", "mid", "secNo") 所以这样设计为画蛇添足。
+		系统本身支持组合全文索引，但是使用需要注意，会占用大量的文件空间。
+	*/
+	fullText.AddFields("content")
 	//指定content为全文索引字段，长度为5
 	//如果没有指定，则等同一般索引
-	err = fullText.SetFullField("content", 5) //添加content全文索引字段，长度为10
+	err = fullText.AddFullText("content", 5) //添加content全文索引字段，长度为10
 	if err != nil {
-		t.Fatalf("SetFullField 失败: %v", err)
+		t.Fatalf("AddFullText 失败: %v", err)
 	}
 	table.SetFullTextIndex([]FullTextIndex{fullText}) //将全文索引设置到表中
 
-	normalIndex := DefaultNormalIndexNew("idx")
+	normalIndex := DefaultNormalIndexNew()
 	normalIndex.AddFields("mid", "secNo")            //创建一个普通组合索引
 	table.SetNormalIndex([]NormalIndex{normalIndex}) //将普通索引设置到表中
 	//------------------------------
@@ -609,257 +859,4 @@ func TestCompositePrimaryKeySearch(t *testing.T) {
 			fmt.Printf("全文索引结果集 %d: %v\n", i, item)
 		}
 	*/
-}
-
-// TestTableSearch 测试表遍历数据和Search方法的功能
-func TestTableSearch(t *testing.T) {
-	// 创建测试表
-	table, err := TableNew("test_search")
-	if err != nil {
-		t.Fatalf("TableNew 失败: %v", err)
-	}
-	if table == nil {
-		t.Fatal("TableNew 失败")
-	}
-	// 必须先为表预设字段和数据类型
-	fields := map[string]any{"id": 0, "name": "", "age": uint8(0), "description": ""}
-	table.SetFields(fields)
-
-	PrimaryKeys := DefaultPrimaryKeyNew("pk")
-	PrimaryKeys.AddFields("id")      //创建一个id的组合主键
-	table.SetPrimaryKey(PrimaryKeys) //将组合主键设置到表中
-
-	fullText := DefaultFullTextIndexNew()
-	//全文索引正常情况下必须带上主键，否则后面的关键词都被覆盖，失去全文索引的意义。
-	fullText.AddFields("description", "id") //创建一个description的组合全文索引
-	//指定content为全文索引字段，长度为5
-	//如果没有指定，则等同一般索引
-	err = fullText.SetFullField("description", 5) //添加description全文索引字段，长度为5
-	if err != nil {
-		t.Fatalf("SetFullField 失败: %v", err)
-	}
-	table.SetFullTextIndex([]FullTextIndex{fullText}) //将组合全文索引设置到表中
-
-	normalIndex := DefaultNormalIndexNew("idx")
-	normalIndex.AddFields("name", "age")             //创建一个name, age的组合普通索引
-	table.SetNormalIndex([]NormalIndex{normalIndex}) //将组合普通索引设置到表中
-
-	// 插入测试数据
-	data := []map[string]any{
-		{"id": 1, "name": "六月", "age": uint8(25), "description": "古木阴阴六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
-		{"id": 2, "name": "Bob", "age": uint8(30), "description": "Bob is a product manager"},
-		{"id": 3, "name": "Charlie", "age": uint8(35), "description": "Charlie is1 a designer"},
-		{"id": 4, "name": "David", "age": uint8(40), "description": "David isnot a developer"},
-		{"id": 5, "name": "Eve", "age": uint8(45), "description": "Eve is an manager"},
-		{"id": 6, "name": "Alice", "age": uint8(27), "description": "Alice is2 a software engineer"},
-		{"id": nil, "name": "Eve 49", "age": uint8(49), "description": "Eve is3 a manager 49"}, //"id": nil 使用自动增值
-		{"id": nil, "name": "Eve 55", "age": uint8(55), "description": "Eve is4 a manager 55"}, //"id": nil 使用自动增值
-	}
-	for _, item := range data {
-		fields := table.GetAllFields()
-		fields["id"] = item["id"]
-		fields["name"] = item["name"]
-		fields["age"] = item["age"]
-		fields["description"] = item["description"]
-		currentID, err := table.Insert(&fields)
-		if err != nil {
-			t.Fatalf("插入测试数据失败: %v", err)
-		}
-		if item["id"] == nil {
-			continue
-		}
-		if currentID != AnyToInt(item["id"]) {
-			t.Errorf("插入测试数据后，当前ID应为%v，实际: %d", AnyToInt(item["id"]), currentID)
-		}
-	}
-	//测试遍历表所有kv
-	t.Run("For", func(t *testing.T) {
-		dataIter := table.For()
-		for dataIter.Next() {
-			//fmt.Printf("dataIter.Key(): %v\n", dataIter.Key())
-			fmt.Printf("key: %s, value: %s\n", dataIter.Key(), dataIter.Value())
-			//val := table.ParseValue(dataIter.Value())
-			//fmt.Printf("val: %v\n", val)
-		}
-		dataIter.Release()
-	})
-	fmt.Println("-----------------")
-	// 测试遍历表所有数据
-	t.Run("ForData", func(t *testing.T) {
-		// 使用ForData方法遍历所有数据
-		dataIter := table.ForData()
-		for dataIter.Next() {
-			k, v := dataIter.Key(), dataIter.Value()
-			fmt.Printf("key: %s, value: %s\n", k, v)
-			if k == nil {
-				break
-			}
-		}
-
-	})
-	// 测试1: 主键搜索
-	t.Run("PrimaryKeySearch", func(t *testing.T) {
-		// 使用Search方法搜索主键为3的记录
-		fields := map[string]any{
-			"id": 1,
-		}
-		dataIter, err := table.Search(&fields)
-		if dataIter.iter == nil {
-			t.Fatalf("Search 失败: %v", err)
-		}
-		records := dataIter.GerRecords(true)
-		fmt.Printf("records: %v\n", records)
-		//判断data[0]和records是否相等
-
-		if records[0]["name"] != data[0]["name"] {
-			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["name"], records[0]["name"])
-		}
-		if records[0]["age"] != data[0]["age"] {
-			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["age"], records[0]["age"])
-		}
-		if records[0]["description"] != data[0]["description"] {
-			t.Errorf("搜索主键为1的记录错误，期望: %v, 实际: %v", data[0]["description"], records[0]["description"])
-		}
-
-	})
-
-	// 测试2: 索引字段搜索
-	t.Run("IndexSearch", func(t *testing.T) {
-		// 使用Search方法搜索name为"Charlie"的记录
-		fields := map[string]any{
-			"name": "Charlie",
-		}
-		dataIter, err := table.Search(&fields)
-		if dataIter.iter == nil {
-			t.Fatalf("Search 失败: %v", err)
-		}
-		defer dataIter.Release()
-		records := dataIter.GerRecords(true)
-		for _, item := range records {
-			fmt.Printf("records: %v\n", item)
-		}
-
-		if records[0]["age"] != data[2]["age"] {
-			t.Errorf("搜索name为Charlie的记录错误，期望: %v, 实际: %v", data[2]["age"], records[0]["age"])
-		}
-	})
-
-	// 测试3: 全文索引搜索
-	t.Run("FullTextSearch", func(t *testing.T) {
-		// 使用Search方法搜索description包含"Bob"的记录
-		fields := map[string]any{
-			"description": "Bob",
-		}
-		dataIter, err := table.Search(&fields)
-		if dataIter.iter == nil {
-			t.Fatalf("Search 失败: %v", err)
-		}
-		defer dataIter.Release()
-		records := dataIter.GerRecords(true)
-		for _, item := range records {
-			fmt.Printf("records: %v\n", item)
-		}
-
-		sdata := []map[string]any{
-			{"description": "古木阴阴六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
-			{"description": "六月凉，幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
-			{"description": "幽花藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
-			{"description": "藉藉四时香。——裘万顷《次余仲庸松风阁韵十九首其三》"},
-			{"description": "——裘万顷《次余仲庸松风阁韵十九首其三》"},
-			{"description": "次余仲庸松风阁韵十九首其三》"},
-			{"description": "十九首其三》"},
-			{"description": "。——裘万顷《次余仲庸松风阁韵十九首其三》"},
-		}
-		for _, item := range sdata {
-			fields := map[string]any{
-				"description": item["description"],
-			}
-			dataIter, err := table.Search(&fields)
-			if dataIter.iter == nil {
-				t.Fatalf("Search 失败: %v", err)
-			}
-			defer dataIter.Release()
-
-			records := dataIter.GerRecords(true)
-			for _, item := range records {
-				fmt.Printf("搜索:%v -》 records: %v\n", fields["description"], item)
-			}
-
-			//判断data[1]和records是否相等
-			if records[0]["name"] != data[0]["name"] {
-				t.Errorf("全文索引搜索 description 包含Bob的记录错误，期望: %v, 实际: %v", data[1]["name"], records[0]["name"])
-			}
-			if records[0]["age"] != data[0]["age"] {
-				t.Errorf("全文索引搜索 description 包含Bob的记录错误，期望: %v, 实际: %v", data[0]["age"], records[0]["age"])
-			}
-			if records[0]["description"] != data[0]["description"] {
-				t.Errorf("全文索引搜索 description 包含Bob的记录错误，期望: %v, 实际: %v", data[0]["description"], records[0]["description"])
-			}
-		}
-
-		sdata1 := []map[string]any{
-			{"description": "Bob is a product manager"},
-			{"description": "is a product manager"},
-			{"description": "a product manager"},
-			{"description": "product manager"},
-			{"description": "ct ma"},
-			//{"description": "is"},
-			{"description": " a product manager"},
-			{"description": " product"},
-		}
-		for _, item := range sdata1 {
-			fields := map[string]any{
-				"description": item["description"],
-			}
-			dataIter, err := table.Search(&fields)
-			if dataIter.iter == nil {
-				t.Fatalf("Search 失败: %v", err)
-			}
-			defer dataIter.Release()
-
-			records := dataIter.GerRecords(true)
-			for _, item := range records {
-				fmt.Printf("搜索:%v -》 records: %v\n", fields["description"], item)
-			}
-			if records[0][table.primaryKey.GetFields()[0]] != data[1]["id"] {
-				fmt.Printf("查询结果可能是多个: %v\n。但是测试并没有错误。", records)
-				//t.Errorf("全文索引搜索 description 包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primary[0]])
-			}
-		}
-	})
-
-	// 测试4: 搜索不存在的数据
-	t.Run("SearchNonExistent", func(t *testing.T) {
-		fields := map[string]any{
-			"id": 100,
-		}
-		// 使用Search方法搜索不存在的id
-		dataIter, err := table.Search(&fields)
-		if dataIter.iter == nil {
-			t.Fatalf("Search 失败: %v", err)
-		}
-		defer dataIter.Release()
-		records := dataIter.GerRecords(true)
-		//判断data[1]和records是否相等
-		if len(records) != 0 {
-			t.Errorf("搜索description包含Bob的记录错误，期望: %v, 实际: %v", data[1]["id"], records[0][table.primaryKey.GetFields()[0]])
-		}
-	})
-
-	//打开所有记录
-	t.Run("SearchAll", func(t *testing.T) {
-		// 第一次搜索，缓存结果
-		fields := map[string]any{
-			"id": nil, // id=nil或空，将获取所有表记录
-		}
-		dataIter, err := table.Search(&fields)
-		if dataIter.iter == nil {
-			t.Fatalf("Search 失败: %v", err)
-		}
-		defer dataIter.Release()
-		records := dataIter.GerRecords(true)
-		for i, item := range records {
-			fmt.Printf("item %d: %v\n", i, item)
-		}
-	})
 }
