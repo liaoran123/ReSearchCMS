@@ -10,14 +10,19 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/liaoran123/sfsDb/storage"
+	"github.com/liaoran123/sfsDb/util"
 )
 
 // 全局Pool实例
 var globalPool *pool.Pool
+var batch storage.Batch
 
 func init() {
 	// 初始化全局Pool，数据库插入属于IO密集型任务，使用专门的IO Pool
 	globalPool = pool.NewPoolForIO()
+	batch = tables.Dir.GetBatch()
 }
 
 // 定义中英文句子分隔符的正则表达式
@@ -36,9 +41,7 @@ func TraversePathAndReadFiles(rootPath string) error {
 				return err
 			}
 			//查询url是否存在
-			iter, err := tables.Dir.Search(&map[string]any{
-				"url": path,
-			})
+			iter := tables.Dir.Search(&map[string]any{"url": path}, util.Equal)
 			defer iter.Release()
 			if iter.Exist() {
 				fmt.Printf("目录 %s 已存在，跳过\n", path)
@@ -50,7 +53,7 @@ func TraversePathAndReadFiles(rootPath string) error {
 					"name": info.Name(),
 					"url":  path,
 					"ext":  filepath.Ext(path), //文件后缀
-				})
+				}, batch)
 				if err != nil {
 					fmt.Printf("插入目录 %s 失败: %v\n", path, err)
 					return err
