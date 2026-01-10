@@ -1,12 +1,12 @@
 package files
 
 import (
+	"ReSearch/pool"
+	"ReSearch/tables"
 	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
-	"researchCms/pool"
-	"researchCms/tables"
 	"strings"
 	"sync"
 	"time"
@@ -107,7 +107,7 @@ func AddArticle(mid int, title, content string) error {
 					"secNo":   secNo, //文章句子序号
 					"title":   title,
 					"content": sentence,
-				})
+				}, batch)
 				//fmt.Printf("secNo: %v\n", secNo)
 				if err != nil {
 					fmt.Println("插入文章失败:", err)

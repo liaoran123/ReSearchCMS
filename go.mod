@@ -1,4 +1,4 @@
-module researchCms
+module ReSearch
 
 go 1.25.3
 
