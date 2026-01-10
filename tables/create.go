@@ -9,7 +9,7 @@ var Dir *engine.Table
 var Article *engine.Table
 
 func init() {
-	_, err := storage.OpenDefaultDb("./rscms")
+	_, err := storage.OpenDefaultDb("./rsdb")
 	if err != nil {
 		panic(err)
 	}
