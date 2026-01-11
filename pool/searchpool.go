@@ -11,26 +11,26 @@ import (
 // Result: 搜索结果（协程安全，由任务池填充）
 // Error: 搜索过程中的错误（协程安全，由任务池填充）
 type SearchTask struct {
-	Query  string      // 搜索查询词
-	Result interface{} // 搜索结果
-	Error  error       // 搜索错误
+	Query  string // 搜索查询词
+	Result any    // 搜索结果
+	Error  error  // 搜索错误
 }
 
 // SearchFunc 定义搜索函数类型
 // 参数：查询词
 // 返回：搜索结果和可能的错误
-type SearchFunc func(query string) (interface{}, error)
+type SearchFunc func(query string) (any, error)
 
 // SearchPool 搜索任务池
 // 用于并发执行搜索任务并收集结果
 type SearchPool struct {
-	size       int           // 工作协程数量
-	taskCh     chan *SearchTask // 任务通道
-	resultCh   chan *SearchTask // 结果通道
-	wg         sync.WaitGroup // 等待组，用于等待所有任务完成
-	ctx        context.Context // 上下文，用于控制任务取消
+	size       int                // 工作协程数量
+	taskCh     chan *SearchTask   // 任务通道
+	resultCh   chan *SearchTask   // 结果通道
+	wg         sync.WaitGroup     // 等待组，用于等待所有任务完成
+	ctx        context.Context    // 上下文，用于控制任务取消
 	cancel     context.CancelFunc // 取消函数，用于关闭任务池
-	searchFunc SearchFunc // 搜索函数
+	searchFunc SearchFunc         // 搜索函数
 }
 
 // NewSearchPool 创建一个新的搜索任务池
@@ -39,12 +39,12 @@ type SearchPool struct {
 // 返回值: 搜索任务池实例
 func NewSearchPool(size int, searchFunc SearchFunc) *SearchPool {
 	ctx, cancel := context.WithCancel(context.Background())
-	
+
 	// 确保size至少为1
 	if size <= 0 {
 		size = 1
 	}
-	
+
 	return &SearchPool{
 		size:       size,
 		taskCh:     make(chan *SearchTask, 100), // 带缓冲的任务通道
@@ -67,7 +67,7 @@ func (p *SearchPool) Start() {
 // worker 工作协程，执行搜索任务
 func (p *SearchPool) worker() {
 	defer p.wg.Done()
-	
+
 	for {
 		select {
 		case <-p.ctx.Done():
@@ -78,12 +78,12 @@ func (p *SearchPool) worker() {
 				// 任务通道已关闭，退出
 				return
 			}
-			
+
 			// 执行搜索任务
 			result, err := p.searchFunc(task.Query)
 			task.Result = result
 			task.Error = err
-			
+
 			// 将结果发送到结果通道
 			p.resultCh <- task
 		}
@@ -94,7 +94,7 @@ func (p *SearchPool) worker() {
 // 注意：这个方法不再通过 Start 启动，而是在 GetResults 中调用
 func (p *SearchPool) collector() {
 	defer close(p.resultCh)
-	
+
 	// 等待所有工作协程完成
 	p.wg.Wait()
 }
@@ -128,17 +128,17 @@ func (p *SearchPool) SubmitMany(tasks []*SearchTask) error {
 func (p *SearchPool) GetResults() ([]*SearchTask, error) {
 	// 关闭任务通道，不再接受新任务
 	close(p.taskCh)
-	
+
 	// 启动结果收集协程，等待所有工作协程完成后关闭结果通道
 	go p.collector()
-	
+
 	var results []*SearchTask
-	
+
 	// 从结果通道读取所有结果
 	for task := range p.resultCh {
 		results = append(results, task)
 	}
-	
+
 	return results, nil
 }
 
@@ -148,16 +148,16 @@ func (p *SearchPool) GetResults() ([]*SearchTask, error) {
 func (p *SearchPool) GetResultsWithTimeout(timeout time.Duration) ([]*SearchTask, error) {
 	// 关闭任务通道，不再接受新任务
 	close(p.taskCh)
-	
+
 	// 启动结果收集协程，等待所有工作协程完成后关闭结果通道
 	go p.collector()
-	
+
 	// 创建带超时的上下文
 	timeoutCtx, cancel := context.WithTimeout(p.ctx, timeout)
 	defer cancel()
-	
+
 	var results []*SearchTask
-	
+
 	// 使用select监听结果通道和超时
 	for {
 		select {
@@ -191,14 +191,14 @@ func (p *SearchPool) Size() int {
 func exampleSearchFunc(query string) (interface{}, error) {
 	// 模拟搜索耗时
 	time.Sleep(100 * time.Millisecond)
-	
+
 	// 模拟搜索结果
 	result := map[string]interface{}{
 		"query":   query,
 		"result":  "搜索结果: " + query,
 		"time":    time.Now().Format(time.RFC3339),
 	}
-	
+
 	return result, nil
 }
 
@@ -207,10 +207,10 @@ func main() {
 	// 创建搜索任务池，使用4个工作协程
 	pool := pool.NewSearchPool(4, exampleSearchFunc)
 	defer pool.Close()
-	
+
 	// 启动任务池
 	pool.Start()
-	
+
 	// 创建搜索任务
 	tasks := []*pool.SearchTask{
 		{Query: "golang"},
@@ -219,20 +219,20 @@ func main() {
 		{Query: "javascript"},
 		{Query: "rust"},
 	}
-	
+
 	// 提交任务
 	if err := pool.SubmitMany(tasks); err != nil {
 		fmt.Printf("提交任务失败: %v\n", err)
 		return
 	}
-	
+
 	// 获取结果，超时时间1秒
 	results, err := pool.GetResultsWithTimeout(time.Second)
 	if err != nil {
 		fmt.Printf("获取结果失败: %v\n", err)
 		return
 	}
-	
+
 	// 打印结果
 	for _, result := range results {
 		if result.Error != nil {

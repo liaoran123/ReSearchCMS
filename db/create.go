@@ -1,24 +1,28 @@
-package tables
+package db
 
 import (
 	"github.com/liaoran123/sfsDb/engine"
 	"github.com/liaoran123/sfsDb/storage"
 )
 
-var Dir *engine.Table
-var Article *engine.Table
+var Store storage.Store
+var Tables map[string]*engine.Table
+
+// var Article *engine.Table
+var Senc *engine.Table
+var err error
 
 func init() {
-	_, err := storage.OpenDefaultDb("./rsdb")
+	Store, err = storage.OpenDefaultDb("./rsdb")
 	if err != nil {
 		panic(err)
 	}
-	Dir, err = CreateTable_dir()
+	Tables = make(map[string]*engine.Table, 2)
+	Tables["dir"], err = CreateTable_dir()
 	if err != nil {
 		panic(err)
 	}
-
-	Article, err = CreateTable_article()
+	Tables["senc"], err = CreateTable_Senc()
 	if err != nil {
 		panic(err)
 	}
@@ -52,12 +56,12 @@ func CreateTable_dir() (*engine.Table, error) {
 	//在表创建索引
 	table.CreateIndex(primaryKey)
 	//添加普通索引url
-	index, err := engine.DefaultNormalIndexNew("url")
+	index, err := engine.DefaultNormalIndexNew("idx")
 	if err != nil {
 		return nil, err
 	}
 	//添加普通索引字段
-	index.AddFields("url")
+	index.AddFields("url", "ext")
 	//在表创建索引
 	table.CreateIndex(index)
 	//添加普通索引ext
@@ -71,16 +75,15 @@ func CreateTable_dir() (*engine.Table, error) {
 	table.CreateIndex(index)
 	return table, nil
 }
-func CreateTable_article() (*engine.Table, error) {
-	table, err := engine.TableNew("article")
+func CreateTable_Senc() (*engine.Table, error) {
+	table, err := engine.TableNew("senc")
 	if err != nil {
 		return nil, err
 	}
 	// 设置字段
 	fields := map[string]any{
-		"mid":     0,  //文章ID或目录ID
+		"did":     0,  //目录ID
 		"secNo":   0,  //文章句子序号
-		"title":   "", //文章标题
 		"content": "", //文章内容
 	}
 	//设置表字段
@@ -90,7 +93,7 @@ func CreateTable_article() (*engine.Table, error) {
 	if err != nil {
 		return nil, err
 	}
-	primaryKey.AddFields("mid", "secNo") //创建一个mid, secNo的组合主键
+	primaryKey.AddFields("did", "secNo") //创建一个did, secNo的组合主键
 	table.CreateIndex(primaryKey)
 	//添加全文索引content
 	FullTextIndex, err := engine.DefaultFullTextIndexNew("ft")
@@ -99,7 +102,7 @@ func CreateTable_article() (*engine.Table, error) {
 	}
 	//添加全文索引字段
 	//全文索引正常情况下必须带上主键，否则后面的关键词都被覆盖，失去全文索引的意义。
-	FullTextIndex.AddFields("content", "mid", "secNo")
+	FullTextIndex.AddFields("content", "did", "secNo")
 	//指定content为全文索引字段，索引长度为5
 	//如果没有指定，则等同一般索引
 	err = FullTextIndex.SetFullField("content", 5)

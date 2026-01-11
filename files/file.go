@@ -26,6 +26,8 @@ func GetOfficeTextContent(filePath string) (string, error) {
 		return getXLSXTextContent(filePath)
 	case ".pptx":
 		return getPPTXTextContent(filePath)
+	case ".ppt":
+		return "", fmt.Errorf("不支持旧版PPT格式(.ppt)，请转换为PPTX格式后再处理")
 	default:
 		return "", fmt.Errorf("不支持的文件类型: %s", ext)
 	}
@@ -139,7 +141,7 @@ func ReadFileContent(filePath string) (string, error) {
 	// 获取文件扩展名
 	ext := filepath.Ext(filePath)
 	// 检查是否为Office文件
-	if ext == ".docx" || ext == ".xlsx" || ext == ".pptx" {
+	if ext == ".docx" || ext == ".xlsx" || ext == ".pptx" || ext == ".ppt" {
 		return GetOfficeTextContent(filePath)
 	}
 
