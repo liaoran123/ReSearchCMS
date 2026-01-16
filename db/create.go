@@ -1,6 +1,8 @@
 package db
 
 import (
+	"ReSearch/config"
+
 	"github.com/liaoran123/sfsDb/engine"
 	"github.com/liaoran123/sfsDb/storage"
 )
@@ -13,7 +15,11 @@ var Senc *engine.Table
 var err error
 
 func init() {
-	Store, err = storage.OpenDefaultDb("./rsdb")
+	dbPath := config.Cfg.Db.Path
+	if dbPath == "" {
+		dbPath = "./rsdb"
+	}
+	Store, err = storage.OpenDefaultDb(dbPath)
 	if err != nil {
 		panic(err)
 	}

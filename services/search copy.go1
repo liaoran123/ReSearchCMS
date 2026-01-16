@@ -1,0 +1,69 @@
+package services
+
+import (
+	"ReSearch/db"
+)
+
+// SearchResult 搜索结果结构
+type SearchResult struct {
+	Did     int    `json:"did"`
+	SecNo   int    `json:"secNo"`
+	Content string `json:"content"`
+	Path    string `json:"path,omitempty"`
+}
+
+// Search 执行搜索
+func Search(query string, start, limit int) ([]SearchResult, int, error) {
+	// 在 senc 表中搜索包含查询词的记录
+	iter := db.Tables["senc"].Search(&map[string]any{
+		"content": query,
+	})
+	defer iter.Release()
+
+	var results []SearchResult
+
+	// 初始化结果切片
+	results = make([]SearchResult, 0)
+
+	// 获取所有匹配记录
+	records := iter.GetRecords(true)
+	totalCount := len(records)
+
+	// 处理分页
+	currentIndex := 0
+	for _, record := range records {
+		// 跳过记录直到达到起始位置
+		if currentIndex < start {
+			currentIndex++
+			continue
+		}
+
+		// 达到限制后停止
+		if len(results) >= limit {
+			break
+		}
+
+		result := SearchResult{
+			Did:     record["did"].(int),
+			SecNo:   record["secNo"].(int),
+			Content: record["content"].(string),
+		}
+
+		// 尝试获取文件路径
+		if did, ok := record["did"].(int); ok {
+			dirIter := db.Tables["dir"].Search(&map[string]any{"id": did})
+			defer dirIter.Release()
+			dirRecords := dirIter.GetRecords(true)
+			if len(dirRecords) > 0 {
+				if path, ok := dirRecords[0]["url"].(string); ok {
+					result.Path = path
+				}
+			}
+		}
+
+		results = append(results, result)
+		currentIndex++
+	}
+
+	return results, totalCount, nil
+}

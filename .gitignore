@@ -27,4 +27,8 @@ Thumbs.db
 # Database files
 *.db
 *.sqlite
-storedb/db/
+
+files/rsdb
+rsdb
+
+bootstrap5.3

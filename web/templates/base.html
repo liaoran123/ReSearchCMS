@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="{{.lang}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="/static/css/custom.css" rel="stylesheet">
+</head>
+<body>
+    {{template "navbar" .}}
+
+    <!-- Main Content -->
+    <div class="container mt-5">
+        {{template "content" .}}
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-light text-center text-lg-start mt-5">
+        <div class="container p-4">
+            <div class="text-center">
+                <p>{{.translator.Translate "app_name" .lang}} &copy; 2026</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap 5.3 JS -->
+    <script src="/static/js/bootstrap.bundle.min.js"></script>
+    <!-- Custom JS -->
+    <script src="/static/js/custom.js"></script>
+</body>
+</html>

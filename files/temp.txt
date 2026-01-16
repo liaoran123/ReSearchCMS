@@ -1,0 +1,24 @@
+var wg sync.WaitGroup
+    
+    // 老方法 - 啰嗦
+    wg.Add(1)
+    go func() {
+        defer wg.Done()
+        doWork()
+    }()
+    
+    // 新方法 - 简洁! ✨
+    wg.Go(func() {
+        doWork()
+    })
+    
+    // 多个任务
+    for i := 0; i < 5; i++ {
+        i := i // 注意:Go 1.22+ 不需要这行
+        wg.Go(func() {
+            fmt.Println("任务", i)
+        })
+    }
+    
+    wg.Wait()
+

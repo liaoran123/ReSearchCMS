@@ -15,12 +15,16 @@ func init() {
 	// 加载配置文件，尝试多个可能的路径
 	var err error
 
-	// 尝试执行文件所在目录的config.yaml
-	execPath, err := os.Executable()
-	if err == nil {
-		execDir := filepath.Dir(execPath)
-		configPath := filepath.Join(execDir, "config.yaml")
-		Cfg, err = LoadConfig(configPath)
+	// 尝试当前目录的config.yaml
+	Cfg, err = LoadConfig("config.yaml")
+	if err != nil {
+		// 尝试执行文件所在目录的config.yaml
+		execPath, err := os.Executable()
+		if err == nil {
+			execDir := filepath.Dir(execPath)
+			configPath := filepath.Join(execDir, "config.yaml")
+			Cfg, err = LoadConfig(configPath)
+		}
 	}
 
 	if err != nil {
@@ -37,15 +41,13 @@ func init() {
 		os.Stderr.WriteString("警告：所有配置文件路径都无法加载，使用默认值\n")
 		Cfg = &Config{
 			Web: WebConfig{
-				Port: 9981,
+				Port:     9981,
+				Password: "123456",
+				Lang:     "zh",
+				Path:     "",
 			},
 			Db: DbConfig{
-				DbPath:   "db",
-				Password: "",
-			},
-			IterCache: IterCacheConfig{
-				Timeout: time.Minute * 5,
-				Max:     10000,
+				Path: "./rsdb",
 			},
 		}
 	}
@@ -53,20 +55,21 @@ func init() {
 
 // Config 配置结构体
 type Config struct {
-	Web       WebConfig       `yaml:"web"`
-	Db        DbConfig        `yaml:"db"`
-	IterCache IterCacheConfig `yaml:"iter_cache"`
+	Web WebConfig `yaml:"web"`
+	Db  DbConfig  `yaml:"db"`
 }
 
 // WebConfig Web配置
 type WebConfig struct {
-	Port int `yaml:"port"`
+	Port     int    `yaml:"port"`
+	Password string `yaml:"password"`
+	Lang     string `yaml:"lang"`
+	Path     string `yaml:"filepath"`
 }
 
 // DbConfig 数据库配置
 type DbConfig struct {
-	DbPath   string `yaml:"dbpath"`
-	Password string `yaml:"password"`
+	Path string `yaml:"filepath"`
 }
 
 // IterCacheConfig 数据迭代器缓存配置

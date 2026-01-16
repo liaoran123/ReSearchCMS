@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="{{.lang}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="/static/css/custom.css" rel="stylesheet">
+</head>
+<body>
+    {{template "navbar" .}}
+
+    <!-- Header with Search Box -->
+    <header class="bg-light py-1">
+        <div class="container">         
+           {{template "searchinput" .}}
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mt-5">
+        <h1>目录浏览</h1>
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                配置文件路径
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <h5 class="card-title">当前配置路径</h5>
+                    <p class="card-text">
+                        <strong>配置文件路径：</strong>
+                        <code>{{.configPath}}</code>
+                    </p>
+                    {{if .configPath}}
+                    <p class="card-text">
+                        <strong>路径状态：</strong>
+                        <span class="text-success">已配置</span>
+                    </p>
+                    {{else}}
+                    <p class="card-text">
+                        <strong>路径状态：</strong>
+                        <span class="text-warning">未配置</span>
+                    </p>
+                    {{end}}
+                </div>
+                {{if .configPath}}
+                <div class="mb-4">
+                    <h5 class="card-title">目录内容</h5>
+                    {{if .directoryItems}}
+                    <div id="directory-browser">
+                        <div class="mb-3">
+                            <nav aria-label="breadcrumb">
+                                <ol class="breadcrumb" id="breadcrumb">
+                                    <li class="breadcrumb-item active" aria-current="page">根目录</li>
+                                </ol>
+                            </nav>
+                        </div>
+                        <ul class="list-group list-group-flush" id="directory-list">
+                            {{range .directoryItems}}
+                            <li class="list-group-item">
+                                {{if eq .type "directory"}}
+                                <a href="#" class="directory-link" data-path="{{.path}}" style="text-decoration: none; color: inherit;">
+                                    <span class="fw-bold">{{.name}}</span>
+                                    <span class="text-muted float-end">📁 目录</span>
+                                </a>
+                                {{else}}
+                                <div style="text-decoration: none; color: inherit;">
+                                    <span class="fw-bold">{{.name}}</span>
+                                    <span class="text-muted float-end">📄 文件</span>
+                                </div>
+                                {{end}}
+                            </li>
+                            {{end}}
+                        </ul>
+                    </div>
+                    {{else}}
+                    <div class="alert alert-warning" role="alert">
+                        目录为空或无法访问
+                    </div>
+                    {{end}}
+                </div>
+                {{else}}
+                <div class="alert alert-info" role="alert">
+                    请先在配置文件中设置路径，或在索引页面中配置索引路径
+                </div>
+                {{end}}
+            </div>
+        </div>
+    </div>
+
+    {{template "footer" .}}
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const configPath = '{{.configPath}}';
+            
+            // 加载目录内容
+            function loadDirectory(path) {
+                console.log('Loading directory:', path);
+                fetch(`/api/directory?path=${encodeURIComponent(path)}&lang={{.lang}}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Received directory data:', data);
+                        if (data.error) {
+                            alert(data.error);
+                            return;
+                        }
+
+                        // 更新面包屑导航
+                        updateBreadcrumb(path);
+
+                        // 更新目录列表
+                        updateDirectoryList(data.items);
+                    })
+                    .catch(error => {
+                        console.error('Error loading directory:', error);
+                        alert('加载目录失败: ' + error.message);
+                    });
+            }
+
+            // 更新面包屑导航
+            function updateBreadcrumb(path) {
+                const breadcrumb = document.getElementById('breadcrumb');
+                const relativePath = path.replace(configPath, '');
+                const pathParts = relativePath.split('\\').filter(part => part !== '');
+                
+                breadcrumb.innerHTML = '';
+                
+                // 添加根目录
+                const rootItem = document.createElement('li');
+                rootItem.className = 'breadcrumb-item';
+                const rootLink = document.createElement('a');
+                rootLink.href = '#';
+                rootLink.textContent = '根目录';
+                rootLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    loadDirectory(configPath);
+                });
+                rootItem.appendChild(rootLink);
+                breadcrumb.appendChild(rootItem);
+                
+                // 添加路径部分
+                let currentPath = configPath;
+                pathParts.forEach((part, index) => {
+                    if (part) {
+                        currentPath = currentPath + '\\' + part;
+                        
+                        const item = document.createElement('li');
+                        item.className = 'breadcrumb-item';
+                        
+                        if (index === pathParts.length - 1) {
+                            item.className += ' active';
+                            item.setAttribute('aria-current', 'page');
+                            item.textContent = part;
+                        } else {
+                            const link = document.createElement('a');
+                            link.href = '#';
+                            link.textContent = part;
+                            // 保存当前路径到变量，确保闭包能正确捕获
+                            const pathToLoad = currentPath;
+                            link.addEventListener('click', function(e) {
+                                e.preventDefault();
+                                console.log('Breadcrumb link clicked:', part, 'Path:', pathToLoad);
+                                loadDirectory(pathToLoad);
+                            });
+                            item.appendChild(link);
+                        }
+                        
+                        breadcrumb.appendChild(item);
+                    }
+                });
+            }
+
+            // 更新目录列表
+            function updateDirectoryList(items) {
+                const directoryList = document.getElementById('directory-list');
+                directoryList.innerHTML = '';
+                
+                items.forEach(item => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item';
+                    
+                    if (item.type === 'directory') {
+                        const a = document.createElement('a');
+                        a.style.textDecoration = 'none';
+                        a.style.color = 'inherit';
+                        a.className = 'directory-link';
+                        a.setAttribute('data-path', item.path);
+                        a.href = '#';
+                        a.innerHTML = `
+                            <span class="fw-bold">${item.name}</span>
+                            <span class="text-muted float-end">📁 目录</span>
+                        `;
+                        li.appendChild(a);
+                    } else {
+                        const div = document.createElement('div');
+                        div.style.textDecoration = 'none';
+                        div.style.color = 'inherit';
+                        div.innerHTML = `
+                            <span class="fw-bold">${item.name}</span>
+                            <span class="text-muted float-end">📄 文件</span>
+                        `;
+                        li.appendChild(div);
+                    }
+                    
+                    directoryList.appendChild(li);
+                });
+            }
+
+            // 使用事件委托为所有目录链接添加点击事件
+            document.addEventListener('click', function(e) {
+                console.log('Click event triggered on:', e.target);
+                
+                // 只处理目录链接点击，面包屑链接的点击事件已经在创建时单独绑定
+                if (e.target.closest('.directory-link')) {
+                    e.preventDefault();
+                    const link = e.target.closest('.directory-link');
+                    const path = link.getAttribute('data-path');
+                    console.log('Directory link clicked:', path);
+                    loadDirectory(path);
+                }
+            });
+            
+            // 为初始加载的目录链接添加点击事件
+            document.querySelectorAll('.directory-link').forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    const path = this.getAttribute('data-path');
+                    console.log('Initial directory link clicked:', path);
+                    loadDirectory(path);
+                });
+            });
+            
+            // 页面加载完成后输出调试信息
+            console.log('Directory page loaded');
+            console.log('Config path:', configPath);
+            console.log('Initial directory items count:', document.querySelectorAll('.directory-link').length);
+        });
+    </script>
+</body>
+</html>

@@ -11,12 +11,27 @@ func SetupRoutes(r *gin.Engine) {
 	{
 		// 搜索相关路由
 		api.GET("/search", SearchHandler)
-		
+
 		// 索引相关路由
 		api.POST("/index", IndexHandler)
 		api.POST("/index/path", IndexPathHandler)
-		
+
 		// 状态相关路由
 		api.GET("/status", StatusHandler)
+
+		// 上传相关路由
+		api.POST("/upload/logo", UploadLogoHandler)
+
+		// 搜索建议相关路由
+		api.GET("/suggestions", GetSuggestionsHandler)
+
+		// 内容查询路由
+		api.GET("/content", GetContentByDidAndSecNoHandler)
+		
+		// 目录浏览路由
+		api.GET("/directory", DirectoryHandler)
+		
+		// 文章内容路由
+		api.GET("/article/:id", ArticleContentHandler)
 	}
 }

@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="{{.lang}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="/static/css/custom.css" rel="stylesheet">
+</head>
+<body>
+    {{template "navbar" .}}
+
+    <!-- Header with Search Box -->
+    <header class="bg-light py-1">
+        <div class="container">
+            {{template "searchinput" .}}
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mt-5">       
+        <div id="search-results">
+            {{if .query}}
+            <h2>{{.translator.Translate "search_results" .lang}}: {{.query}}</h2>
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">{{.translator.Translate "loading" .lang}}</span>
+            </div>
+            <div id="results-container" class="mt-3"></div>
+            <div id="pagination-container" class="mt-3"></div>
+            {{else}}
+            <p>{{.translator.Translate "search_placeholder" .lang}}</p>
+            {{end}}
+        </div>
+    </div>
+
+    {{template "footer" .}}
+    <script>
+        // fetchContent 函数用于处理箭头按钮点击事件
+        function fetchContent(button) {
+            console.log(`fetchContent called`);
+            
+            // 从按钮的 data 属性中获取值
+            const did = parseInt(button.dataset.did);
+            let secNo = parseInt(button.dataset.secno);
+            const direction = button.dataset.direction;
+            
+            console.log(`Button data: did=${did}, secNo=${secNo}, direction=${direction}`);
+            
+            // 根据方向计算新的 secNo
+            let newSecNo;
+            if (direction === 'up') {
+                newSecNo = secNo - 1;
+            } else {
+                newSecNo = secNo + 1;
+            }
+            
+            // 确保 secNo 为正数
+            if (newSecNo < 1) {
+                console.log('secNo cannot be less than 1');
+                return;
+            }
+            
+            console.log(`Getting content for did: ${did}, newSecNo: ${newSecNo}, direction: ${direction}`);
+            
+            // 调用 API 获取内容
+            fetch(`/api/content?did=${did}&secNo=${newSecNo}`)
+                .then(response => {
+                    console.log(`Response status: ${response.status}`);
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            throw new Error('未找到相关内容');
+                        } else {
+                            throw new Error(`HTTP error! status: ${response.status}`);
+                        }
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('API Response:', data);
+                    
+
+                    if (data.content) {
+                        // 获取当前按钮所在的卡片
+                        const card = button.closest('.card');
+                        const cardBody = card.querySelector('.card-body');
+                        const contentParagraph = cardBody.querySelector('.card-text');
+                        
+                        console.log('Card elements:', { card, cardBody, contentParagraph });
+                        
+                        // 创建新的内容元素
+                        const newContent = document.createElement('div');
+                        newContent.className = 'mt-2 mb-2 p-2 bg-light border rounded';
+                        newContent.style.fontSize = '16px';
+                        newContent.textContent = data.content;
+                        
+                        // 根据方向添加内容（都在 card-text 元素内）
+                        if (direction === 'up') {
+                            // 添加到内容最前面（card-text 元素内）
+                            contentParagraph.insertBefore(newContent, contentParagraph.firstChild);
+                        } else {
+                            // 添加到内容最后面（card-text 元素内）
+                            contentParagraph.appendChild(newContent);
+                        }
+                        
+                        // 更新按钮的 secNo 数据属性
+                        button.dataset.secno = newSecNo;
+                        console.log(`Updated secNo to ${newSecNo}`);
+                        
+                        console.log('Content added successfully');
+                    } else {
+                        console.log('No content found in response');
+                        // 当没有找到内容时，不显示错误提示
+                    }
+
+                })
+                .catch(error => {
+                    console.error('Error fetching content:', error);
+                    // 当错误是"未找到相关内容"时，不显示错误提示
+                    if (error.message !== '未找到相关内容') {
+                        // 显示错误提示
+                        alert('获取内容失败: ' + error.message);
+                    }
+                });
+        }
+
+        // 搜索结果加载
+        document.addEventListener('DOMContentLoaded', function() {
+            const query = "{{.query}}";
+            const limit = 21; // 每页显示21条
+            
+            if (query) {
+                // 直接在页面加载时显示分页控件
+                showPaginationControls();
+                // 加载第一页结果
+                loadResults(1);
+            }
+            
+
+            // 添加内容按钮的点击事件监听器
+            function addContentButtonListeners() {
+                const contentButtons = document.querySelectorAll('.get-content-btn');
+                console.log(`Found ${contentButtons.length} content buttons`);
+                contentButtons.forEach(button => {
+                    button.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        
+                        const direction = this.dataset.direction;
+                        let did = parseInt(this.dataset.did);
+                        let secNo = parseInt(this.dataset.secno);
+                        
+                        console.log(`Button clicked: direction=${direction}, did=${did}, secNo=${secNo}`);
+                        
+                        // 根据方向计算新的 secNo
+                        if (direction === 'up') {
+                            secNo += 1;
+                        } else {
+                            secNo -= 1;
+                        }
+                        
+                        // 确保 secNo 为正数
+                        if (secNo < 1) {
+                            secNo = 1;
+                        }
+                        
+                        console.log(`Getting content for did: ${did}, secNo: ${secNo}, direction: ${direction}`);
+                        
+                        // 调用 API 获取内容
+                        fetch(`/api/content?did=${did}&secNo=${secNo}`)
+                            .then(response => {
+                                console.log(`Response status: ${response.status}`);
+                                return response.json();
+                            })
+                            .then(data => {
+                                console.log('API Response:', data);
+                                
+                                if (data.content) {
+                                    // 获取当前按钮所在的卡片
+                                    const card = this.closest('.card');
+                                    const cardBody = card.querySelector('.card-body');
+                                    const contentParagraph = cardBody.querySelector('.card-text');
+                                    
+                                    console.log('Card elements:', { card, cardBody, contentParagraph });
+                                    
+                                    // 创建新的内容元素
+                                    const newContent = document.createElement('div');
+                                    newContent.className = 'mt-2 mb-2 p-2 bg-light border rounded';
+                                    newContent.style.fontSize = '16px';
+                                    newContent.textContent = data.content;
+                                    
+                                    // 根据方向添加内容
+                                    if (direction === 'up') {
+                                        // 添加到内容前面
+                                        contentParagraph.parentNode.insertBefore(newContent, contentParagraph);
+                                    } else {
+                                        // 添加到内容后面
+                                        contentParagraph.parentNode.insertBefore(newContent, contentParagraph.nextSibling);
+                                    }
+                                    
+                                    // 更新按钮的 secNo 数据
+                                    this.dataset.secno = secNo;
+                                    console.log(`Updated secNo to ${secNo}`);
+                                } else {
+                                    console.log('No content found in response');
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error fetching content:', error);
+                            });
+                    });
+                });
+            }
+
+            
+            function loadResults(page) {
+                const start = (page - 1) * limit;
+                const container = document.getElementById('results-container');
+                const spinner = document.querySelector('.spinner-border');
+                
+                // 显示加载状态
+                spinner.style.display = 'inline-block';
+                container.innerHTML = '';
+                
+                console.log('Loading results for page', page, 'start:', start, 'limit:', limit);
+                
+                fetch(`/api/search?q=${encodeURIComponent(query)}&start=${start}&limit=${limit}&lang={{.lang}}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('API Response:', data);
+                        
+                        spinner.style.display = 'none';
+                        
+                        if (data.results && data.results.length > 0) {
+                            // 显示结果
+                            let resultIndex = start + 1; // 计算当前页的起始序号
+                            data.results.forEach(result => {
+                                const card = document.createElement('div');
+                                card.className = 'card mb-3';
+                                
+                                // 确保 did 和 secNo 有值
+                                const did = result.did || result.Did || 0;
+                                const secNo = result.secNo || result.SecNo || 0;
+                                
+                                console.log(`Creating result for did: ${did}, secNo: ${secNo}`);
+                                
+                                // 高亮搜索词
+                                let highlightedContent = result.content || '';
+                                if (query) {
+                                    highlightedContent = highlightSearchTerm(highlightedContent, query);
+                                }
+                                
+                                card.innerHTML = `
+                                    <div class="card-body">
+                                        <div class="d-flex">
+                                            <div class="mr-3" style="font-size: 24px; font-weight: bold; color: #0d6efd; min-width: 40px;">
+                                                ${resultIndex}
+                                            </div>
+                                            <div style="flex: 1;">
+                                                <div class="d-flex align-items-center mb-2">
+                                                    <button class="btn btn-outline-primary btn-sm mr-2" style="border-radius: 50%;" data-Did="${did}" data-SecNo="${secNo}" data-direction="up" onclick="fetchContent(this)">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-up" viewBox="0 0 16 16">
+                                                            <path fill-rule="evenodd" d="M8 15a.5.5 0 0 0 .5-.5V2.707l3.146 3.147a.5.5 0 0 0 .708-.708l-4-4a.5.5 0 0 0-.708 0l-4 4a.5.5 0 1 0 .708.708L7.5 2.707V14.5a.5.5 0 0 0 .5.5z"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                <p class="card-text" style="font-size: 18px; line-height: 1.6;">${highlightedContent}</p>
+                                                <div class="d-flex align-items-center mt-2">
+                                                    <button class="btn btn-outline-primary btn-sm mr-2" style="border-radius: 50%;" data-Did="${did}" data-SecNo="${secNo}" data-direction="down" onclick="fetchContent(this)">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-down" viewBox="0 0 16 16">
+                                                            <path fill-rule="evenodd" d="M8 1a.5.5 0 0 1 .5.5v11.793l3.146-3.147a.5.5 0 0 1 .708.708l-4 4a.5.5 0 0 1-.708 0l-4-4a.5.5 0 0 1 .708-.708L7.5 13.293V1.5A.5.5 0 0 1 8 1z"/>
+                                                        </svg>
+                                                    </button>
+                                                </div>
+                                                ${result.path ? `<span class="card-link" style="font-size: 16px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder" viewBox="0 0 16 16"><path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.994 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.994-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31zM2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4H2.19zm4.69-1.707A1 1 0 0 0 6.172 2H2a1 1 0 0 0-1 1v.87a1 1 0 0 0 .293.707L2.707 4H6.172z"/></svg> ${result.path}</span> <a href="/article/${did}" class="card-link" style="font-size: 16px; margin-left: 10px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-text" viewBox="0 0 16 16"><path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z"/><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg> 打开快照</a>` : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `;
+                                container.appendChild(card);
+                                resultIndex++;
+                            });
+                            
+                            // 显示分页信息
+                            const paginationInfo = document.createElement('div');
+                            paginationInfo.className = 'mt-3 text-center';
+                            paginationInfo.innerHTML = `
+                                <p>显示第 ${page} 页</p>
+                                <p>搜索用时: ${data.searchTime || 0} 毫秒</p>
+                            `;
+                            container.appendChild(paginationInfo);
+                            
+                            // 更新分页控件
+                            updatePaginationControls(page);
+                        } else {
+                            container.innerHTML = `<p>{{.translator.Translate "no_results" .lang}}</p>`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        spinner.style.display = 'none';
+                        container.innerHTML = `<p>{{.translator.Translate "error" .lang}}</p>`;
+                    });
+            }
+            
+            // 高亮搜索词
+            function highlightSearchTerm(text, term) {
+                if (!term) return text;
+                
+                // 转义正则表达式特殊字符
+                const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                
+                // 创建正则表达式，忽略大小写
+                const regex = new RegExp(`(${escapedTerm})`, 'gi');
+                
+                // 替换匹配的文本，添加加粗标签
+                return text.replace(regex, '<strong class="bg-yellow-100 text-yellow-800 px-0.5 rounded">$1</strong>');
+            }
+            
+            function showPaginationControls() {
+                const paginationContainer = document.getElementById('pagination-container');
+                paginationContainer.innerHTML = `
+                    <div id="pagination-controls" class="mt-4 text-center">
+                        <div class="btn-group" role="group" aria-label="Pagination">
+                            <button type="button" id="prev-btn" class="btn btn-primary">上一页</button>
+                            <button type="button" id="page-info" class="btn btn-secondary" disabled>第 1 页</button>
+                            <button type="button" id="next-btn" class="btn btn-primary">下一页</button>
+                        </div>
+                    </div>
+                `;
+                
+                // 添加按钮点击事件
+                document.getElementById('prev-btn').addEventListener('click', function() {
+                    const currentPage = getCurrentPage();
+                    if (currentPage > 1) {
+                        loadResults(currentPage - 1);
+                    }
+                });
+                
+                document.getElementById('next-btn').addEventListener('click', function() {
+                    const currentPage = getCurrentPage();
+                    if (currentPage < 100) { // 最多支持100页
+                        loadResults(currentPage + 1);
+                    }
+                });
+            }
+            
+            function updatePaginationControls(currentPage) {
+                const pageInfo = document.getElementById('page-info');
+                const prevBtn = document.getElementById('prev-btn');
+                const nextBtn = document.getElementById('next-btn');
+                
+                // 更新页码信息
+                pageInfo.textContent = `第 ${currentPage} 页`;
+                
+                // 更新按钮状态
+                prevBtn.disabled = currentPage === 1;
+                nextBtn.disabled = currentPage >= 100; // 最多支持100页
+                
+                // 存储当前状态
+                sessionStorage.setItem('currentPage', currentPage);
+                
+                console.log('Updated pagination controls:', currentPage);
+            }
+            
+            function getCurrentPage() {
+                return parseInt(sessionStorage.getItem('currentPage') || '1');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,10 +1,7 @@
-## 配置文件
 web:
-  port: 9981 # 端口号  
+    port: 9981
+    password: "123456"
+    lang: zh
+    filepath: "E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论"
 db:
-  dbpath: "" # 数据库路径
-  password: "123456" # 密码
-  # 全局数据迭代器缓存配置
-iter_cache:
-  timeout: 5m  # 超时5分钟
-  max: 10000   # 最大缓存数量
+    filepath: ./rsdb

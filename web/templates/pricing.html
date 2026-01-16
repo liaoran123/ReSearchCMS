@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="{{.lang}}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Custom CSS -->
+    <link href="/static/css/custom.css" rel="stylesheet">
+</head>
+<body>
+    {{template "navbar" .}}
+
+    <!-- Header with Search Box -->
+    <header class="bg-light py-1">
+        <div class="container">
+            {{template "searchinput" .}}
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mt-5">
+        <h1>价格方案</h1>
+        <div class="row g-4">
+            <!-- 个人免费版 -->
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white">
+                        个人免费版
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">完全免费</h5>
+                        <p class="card-text">
+                            适用于个人用户非商业用途
+                        </p>
+                        <ul class="list-group list-group-flush mb-4">
+                            <li class="list-group-item">✓ 完整的文件索引功能</li>
+                            <li class="list-group-item">✓ 全文搜索功能</li>
+                            <li class="list-group-item">✓ 多语言支持</li>
+                            <li class="list-group-item">✓ 个人使用无限制</li>
+                        </ul>
+                        <p class="text-center">
+                            <span class="display-4 text-primary">¥0</span>
+                            <small class="text-muted">/ 永久</small>
+                        </p>
+                        <div class="text-center">
+                            <a href="/?lang={{.lang}}" class="btn btn-primary">立即使用</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 公益机构版 -->
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-success text-white">
+                        公益机构版
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">非盈利使用免费</h5>
+                        <p class="card-text">
+                            适用于注册的公益组织、教育机构和非盈利团体
+                        </p>
+                        <ul class="list-group list-group-flush mb-4">
+                            <li class="list-group-item">✓ 所有个人版功能</li>
+                            <li class="list-group-item">✓ 机构级使用权限</li>
+                            <li class="list-group-item">✓ 技术支持</li>
+                            <li class="list-group-item">✓ 非盈利使用无限制</li>
+                        </ul>
+                        <p class="text-center">
+                            <span class="display-4 text-success">¥0</span>
+                            <small class="text-muted">/ 永久</small>
+                        </p>
+                        <div class="text-center">
+                            <a href="/contact?lang={{.lang}}" class="btn btn-success">申请使用</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 商业版 -->
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header bg-warning text-white">
+                        商业版
+                    </div>
+                    <div class="card-body">
+                        <h5 class="card-title">企业和商业用途</h5>
+                        <p class="card-text">
+                            适用于企业、商业组织和盈利性机构
+                        </p>
+                        <ul class="list-group list-group-flush mb-4">
+                            <li class="list-group-item">✓ 所有功能无限制使用</li>
+                            <li class="list-group-item">✓ 企业级技术支持</li>
+                            <li class="list-group-item">✓ 定制化解决方案</li>
+                            <li class="list-group-item">✓ 商业使用许可</li>
+                        </ul>
+                        <p class="text-center mb-4">
+                            <span class="display-4 text-warning">价格咨询</span>
+                        </p>
+                        <div class="text-center">
+                            <a href="/contact?lang={{.lang}}" class="btn btn-warning">联系我们</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 价格说明 -->
+        <div class="card mt-5">
+            <div class="card-header bg-info text-white">
+                价格说明
+            </div>
+            <div class="card-body">
+                <h5 class="card-title">使用条款</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <strong>个人免费版</strong>：仅限个人非商业用途，不得用于任何盈利活动
+                    </li>
+                    <li class="list-group-item">
+                        <strong>公益机构版</strong>：仅限注册的非盈利组织、教育机构和公益团体使用，需提供相关证明
+                    </li>
+                    <li class="list-group-item">
+                        <strong>商业版</strong>：适用于所有盈利性组织和商业活动，价格根据具体需求定制
+                    </li>
+                </ul>
+                <h5 class="card-title mt-4">常见问题</h5>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <strong>Q: 如何证明我是公益机构？</strong><br>
+                        A: 请提供有效的公益组织注册证明或相关文件
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Q: 商业版的价格范围是多少？</strong><br>
+                        A: 商业版价格根据组织规模、使用需求和定制化程度而定，请联系我们获取详细报价
+                    </li>
+                    <li class="list-group-item">
+                        <strong>Q: 免费版和商业版有功能区别吗？</strong><br>
+                        A: 核心功能完全相同，商业版额外提供技术支持和定制化服务
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    {{template "footer" .}}
+</body>
+</html>
