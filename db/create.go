@@ -62,12 +62,13 @@ func CreateTable_dir() (*engine.Table, error) {
 	//在表创建索引
 	table.CreateIndex(primaryKey)
 	//添加普通索引url
-	index, err := engine.DefaultNormalIndexNew("idx")
+	index, err := engine.DefaultNormalIndexNew("url")
 	if err != nil {
 		return nil, err
 	}
 	//添加普通索引字段
-	index.AddFields("url", "ext")
+	//index.AddFields("url", "ext")
+	index.AddFields("url")
 	//在表创建索引
 	table.CreateIndex(index)
 	//添加普通索引ext

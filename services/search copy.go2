@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/liaoran123/sfsDb/engine"
-	"github.com/liaoran123/sfsDb/util"
 )
 
 // SearchResult 搜索结果结构
@@ -18,7 +17,7 @@ type SearchResult struct {
 }
 
 // Search 执行搜索
-func Search(query string, did int, start, limit int) ([]SearchResult, int, error) {
+func Search(query string, start, limit int) ([]SearchResult, int, error) {
 	//将query按空格分隔
 	words := strings.Split(query, " ")
 	//按词的长度排序
@@ -31,7 +30,7 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 	}
 	/*
 		对应sql语句
-		select * from senc where content like words0 and content like words1 and content like words2 and content like words3 order by content asc
+		select * from senc where content like words0 and content like words1 and content like words2 order by content asc
 	*/
 	iters := make([]*engine.TableIter, len(words))
 	for i, word := range words {
@@ -44,39 +43,13 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 			iters[0].SetMatch(mach)
 		}
 	}
-	if did > 0 {
-		/*
-			限制搜索范围在当前目录内
-			对应sql语句
-			select id from dir where url like (select url from dir where did = [did])
-		*/
-		//select url from dir where did = [did]
-		dirIdIter := db.Tables["dir"].Search(&map[string]any{"id": did}, util.Equal)
-		defer dirIdIter.Release()
-		dirRecords := dirIdIter.GetRecords(true, 1).Select("url")
-		var dirURL string
-		if len(dirRecords) > 0 {
-			dirURL = dirRecords[0]["url"].(string)
-			//select id from dir where url like dirURL
-			dirUrlIter := db.Tables["dir"].Search(&map[string]any{
-				"url": dirURL,
-			}, util.Like)
-			defer dirUrlIter.Release()
-			mach := engine.NewAND([]string{"did"}, dirUrlIter.Map()) //dir的did等于当前目录的did
-			iters[0].SetMatch(mach)
-		}
-	}
+
 	var results []SearchResult
+
 	// 初始化结果切片
 	results = make([]SearchResult, 0)
-	// 获取所有匹配记录
-	/*
-		对应sql语句
-		select senc.* from senc,dir where content like words0 and content like words1 and content like words2 and content like words3
-		and senc.did in (select id from dir where url like (select url from dir where did = [did]))
-		order by content asc
 
-	*/
+	// 获取所有匹配记录
 	records := iters[0].GetRecords(true, start, limit)
 	totalCount := len(records)
 
@@ -89,9 +62,10 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 			SecNo:   record["secNo"].(int),
 			Content: record["content"].(string),
 		}
+
 		// 尝试获取文件路径
 		if did, ok := record["did"].(int); ok {
-			dirIter := db.Tables["dir"].Search(&map[string]any{"id": did}, util.Equal)
+			dirIter := db.Tables["dir"].Search(&map[string]any{"id": did})
 			defer dirIter.Release()
 			dirRecords := dirIter.GetRecords(true)
 			if len(dirRecords) > 0 {
@@ -100,8 +74,10 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 				}
 			}
 		}
+
 		results = append(results, result)
 		currentIndex++
 	}
+
 	return results, totalCount, nil
 }

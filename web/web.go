@@ -2,12 +2,16 @@ package web
 
 import (
 	"ReSearch/config"
+	"ReSearch/db"
 	"ReSearch/i18n"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
+	"github.com/liaoran123/sfsDb/util"
 	"gopkg.in/yaml.v3"
 )
 
@@ -58,6 +62,7 @@ func (w *WebServer) SetupRoutes(r *gin.Engine) {
 		"./web/templates/partials/searchinput.html",
 		"./web/templates/partials/navbar.html",
 		"./web/templates/partials/footer.html",
+		"./web/templates/partials/static.html",
 	)
 
 	// 主路由
@@ -136,8 +141,18 @@ func (w *WebServer) StatusPageHandler(c *gin.Context) {
 
 // SettingsPageHandler 处理设置页面请求
 func (w *WebServer) SettingsPageHandler(c *gin.Context) {
+	// 只允许本机访问设置页面
+	clientIP := c.ClientIP()
+	if clientIP != "127.0.0.1" && clientIP != "::1" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Access denied. Only local access allowed.",
+		})
+		return
+	}
+
 	lang := c.DefaultQuery("lang", "zh")
 	logoMessage := c.Query("logoMessage")
+	v := c.Query("v")
 	c.HTML(http.StatusOK, "settings.html", gin.H{
 		"title":       w.translator.Translate("settings", lang),
 		"active":      "settings",
@@ -145,11 +160,21 @@ func (w *WebServer) SettingsPageHandler(c *gin.Context) {
 		"translator":  w.translator,
 		"languages":   w.translator.GetSupportedLanguages(),
 		"logoMessage": logoMessage,
+		"v":           v,
 	})
 }
 
 // SaveSettingsHandler 处理保存设置请求
 func (w *WebServer) SaveSettingsHandler(c *gin.Context) {
+	// 只允许本机访问保存设置功能
+	clientIP := c.ClientIP()
+	if clientIP != "127.0.0.1" && clientIP != "::1" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Access denied. Only local access allowed.",
+		})
+		return
+	}
+
 	lang := c.DefaultQuery("lang", "zh")
 	defaultLanguage := c.PostForm("defaultLanguage")
 
@@ -233,20 +258,97 @@ func (w *WebServer) DirectoryPageHandler(c *gin.Context) {
 	lang := c.DefaultQuery("lang", "zh")
 	configPath := config.Cfg.Web.Path
 
+	// 获取当前目录路径参数
+	currentPath := c.Query("path")
+	if currentPath == "" {
+		// 如果没有提供路径，使用配置路径作为默认路径
+		currentPath = configPath
+	}
+
 	var directoryItems []gin.H
-	if configPath != "" {
-		// 读取目录内容
-		items, err := w.readDirectory(configPath)
+	if currentPath != "" {
+		// 直接调用本地readDirectory函数，返回固定的articleId=1，确保超链接正常显示
+		items, err := w.readDirectory(currentPath)
 		if err == nil {
 			directoryItems = items
+			// 调试输出：目录内容数量
+			fmt.Printf("Directory items count: %d\n", len(directoryItems))
+		} else {
+			// 调试输出：错误信息
+			fmt.Printf("Error reading directory %s: %v\n", currentPath, err)
 		}
 	}
+
+	// 查询当前目录的ID
+	var currentDirId int
+
+	// 调试输出：当前路径
+	fmt.Printf("[DEBUG] Raw current path: %s\n", currentPath)
+
+	// 处理路径格式，确保与数据库中的格式匹配
+	processedPath := currentPath
+	// 确保路径使用正确的分隔符（根据数据库存储格式调整）
+	processedPath = strings.ReplaceAll(processedPath, "\\", "/")
+
+	fmt.Printf("[DEBUG] Processed path: %s\n", processedPath)
+
+	// 1. 先尝试使用完整路径匹配当前目录
+	iterDirCurrent := db.Tables["dir"].Search(&map[string]any{
+		"url": processedPath,
+	}, util.Equal)
+	rdDirCurrent := iterDirCurrent.GetRecords(true).Select("id", "url")
+	iterDirCurrent.Release()
+
+	fmt.Printf("[DEBUG] Full path search found %d records\n", len(rdDirCurrent))
+	if len(rdDirCurrent) > 0 {
+		currentDirId = rdDirCurrent[0]["id"].(int)
+		fmt.Printf("[DEBUG] Found ID: %d for path: %s\n", currentDirId, rdDirCurrent[0]["url"])
+	} else {
+		// 2. 尝试使用原始路径格式（反斜杠）匹配
+		iterDirCurrentRaw := db.Tables["dir"].Search(&map[string]any{
+			"url": currentPath,
+		}, util.Equal)
+		rdDirCurrentRaw := iterDirCurrentRaw.GetRecords(true).Select("id", "url")
+		iterDirCurrentRaw.Release()
+
+		fmt.Printf("[DEBUG] Raw path search found %d records\n", len(rdDirCurrentRaw))
+		if len(rdDirCurrentRaw) > 0 {
+			currentDirId = rdDirCurrentRaw[0]["id"].(int)
+			fmt.Printf("[DEBUG] Found ID: %d for raw path: %s\n", currentDirId, rdDirCurrentRaw[0]["url"])
+		} else {
+			// 3. 如果完整路径匹配失败，尝试使用文件名匹配
+			currentDirName := filepath.Base(currentPath)
+			fmt.Printf("[DEBUG] Searching by directory name: %s\n", currentDirName)
+
+			iterDirCurrentName := db.Tables["dir"].Search(&map[string]any{
+				"name": currentDirName,
+			}, util.Equal)
+			rdDirCurrentName := iterDirCurrentName.GetRecords(true).Select("id", "name", "url")
+			iterDirCurrentName.Release()
+
+			fmt.Printf("[DEBUG] Name search found %d records\n", len(rdDirCurrentName))
+			for _, rec := range rdDirCurrentName {
+				fmt.Printf("[DEBUG] Name match: ID=%d, Name=%s, URL=%s\n", rec["id"], rec["name"], rec["url"])
+			}
+
+			if len(rdDirCurrentName) > 0 {
+				currentDirId = rdDirCurrentName[0]["id"].(int)
+			}
+		}
+	}
+
+	// 调试输出：配置路径和当前路径
+	fmt.Printf("Config path: %s\n", configPath)
+	fmt.Printf("Current path: %s\n", currentPath)
+	fmt.Printf("Current directory ID: %d\n", currentDirId)
 
 	c.HTML(http.StatusOK, "directory.html", gin.H{
 		"title":          w.translator.Translate("directory", lang),
 		"active":         "directory",
 		"lang":           lang,
 		"configPath":     configPath,
+		"currentPath":    currentPath,
+		"currentDirId":   currentDirId,
 		"directoryItems": directoryItems,
 		"translator":     w.translator,
 		"languages":      w.translator.GetSupportedLanguages(),
@@ -263,17 +365,42 @@ func (w *WebServer) readDirectory(path string) ([]gin.H, error) {
 		return nil, err
 	}
 
-	// 处理目录项
 	for _, file := range files {
 		itemType := "file"
 		if file.IsDir() {
 			itemType = "directory"
 		}
 
+		itemPath := filepath.Join(path, file.Name())
+		var itemId int
+
+		// 为所有项（目录和文件）查询对应的id
+		// 1. 先尝试使用完整路径匹配
+		iterdirPath := db.Tables["dir"].Search(&map[string]any{
+			"url": itemPath,
+		}, util.Equal)
+		rddirPath := iterdirPath.GetRecords(true).Select("id")
+		iterdirPath.Release()
+		if len(rddirPath) > 0 {
+			itemId = rddirPath[0]["id"].(int)
+		} else {
+			// 2. 如果完整路径匹配失败，尝试使用文件名匹配
+			iterdirName := db.Tables["dir"].Search(&map[string]any{
+				"name": file.Name(),
+			}, util.Equal)
+			rddirName := iterdirName.GetRecords(true).Select("id")
+			iterdirName.Release()
+			if len(rddirName) > 0 {
+				itemId = rddirName[0]["id"].(int)
+			}
+		}
+
 		items = append(items, gin.H{
-			"name": file.Name(),
-			"type": itemType,
-			"path": filepath.Join(path, file.Name()),
+			"name":      file.Name(),
+			"type":      itemType,
+			"path":      itemPath,
+			"articleId": itemId,
+			"id":        itemId,
 		})
 	}
 

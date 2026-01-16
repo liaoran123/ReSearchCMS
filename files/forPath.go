@@ -54,7 +54,7 @@ func TraversePathAndReadFiles(rootPath string) error {
 			//检测目录是否存在
 			dirurliter := db.Tables["dir"].Search(&map[string]any{
 				"url": path,
-				"ext": ext, //文件后缀
+				//"ext": ext, //文件后缀
 			}, util.Equal)
 			defer dirurliter.Release()
 			if dirurliter.Exist() {

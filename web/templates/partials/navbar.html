@@ -23,16 +23,16 @@
                         <a class="nav-link {{if eq .active "settings"}}active{{end}}" aria-current="{{if eq .active "settings"}}page{{end}}" href="/settings?lang={{.lang}}">{{.translator.Translate "settings" .lang}}</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{if eq .active "directory"}}active{{end}}" aria-current="{{if eq .active "directory"}}page{{end}}" href="/directory?lang={{.lang}}">目录</a>
+                        <a class="nav-link {{if eq .active "directory"}}active{{end}}" aria-current="{{if eq .active "directory"}}page{{end}}" href="/directory?lang={{.lang}}">{{.translator.Translate "directory" .lang}}</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{if eq .active "pricing"}}active{{end}}" aria-current="{{if eq .active "pricing"}}page{{end}}" href="/pricing?lang={{.lang}}">价格</a>
+                        <a class="nav-link {{if eq .active "pricing"}}active{{end}}" aria-current="{{if eq .active "pricing"}}page{{end}}" href="/pricing?lang={{.lang}}">{{.translator.Translate "pricing" .lang}}</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{if eq .active "contact"}}active{{end}}" aria-current="{{if eq .active "contact"}}page{{end}}" href="/contact?lang={{.lang}}">联系我们</a>
+                        <a class="nav-link {{if eq .active "contact"}}active{{end}}" aria-current="{{if eq .active "contact"}}page{{end}}" href="/contact?lang={{.lang}}">{{.translator.Translate "contact" .lang}}</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {{if eq .active "help"}}active{{end}}" aria-current="{{if eq .active "help"}}page{{end}}" href="/help?lang={{.lang}}">帮助</a>
+                        <a class="nav-link {{if eq .active "help"}}active{{end}}" aria-current="{{if eq .active "help"}}page{{end}}" href="/help?lang={{.lang}}">{{.translator.Translate "help" .lang}}</a>
                     </li>                </ul>
                 <!-- Language Selector -->
                 <div class="dropdown">

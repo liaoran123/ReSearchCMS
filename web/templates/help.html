@@ -1,13 +1,9 @@
 <!DOCTYPE html>
 <html lang="{{.lang}}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{template "static" .}}
     <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
-    <!-- Bootstrap 5.3 CSS -->
-    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom CSS -->
-    <link href="/static/css/custom.css" rel="stylesheet">
+   
 </head>
 <body>
     {{template "navbar" .}}
@@ -20,135 +16,232 @@
     </header>
 
     <!-- Main Content -->
-    <div class="container mt-5">
-        <h1>使用帮助</h1>
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                快速开始
-            </div>
-            <div class="card-body">
-                <h5 class="card-title">1. 索引文件</h5>
-                <p class="card-text">
-                    1. 点击导航栏中的"索引"按钮进入索引页面<br>
-                    2. 选择索引类型：目录索引或单个文件索引<br>
-                    3. 输入要索引的文件路径，或点击"浏览"按钮选择目录或文件<br>
-                    4. 输入索引密码（默认为：123456）<br>
-                    5. 点击"创建索引"按钮开始索引过程
-                </p>
-                <h5 class="card-title mt-4">2. 搜索文件</h5>
-                <p class="card-text">
-                    1. 在首页或任何页面的搜索框中输入关键词<br>
-                    2. 点击"搜索"按钮或按回车键<br>
-                    3. 在搜索结果页面查看匹配的文件<br>
-                    4. 点击搜索结果查看文件内容
-                </p>
-                <p class="card-text">
-                    <strong>高级搜索技巧：</strong><br>
-                    - 如果需要搜索目录名和文件名，只需在关键词前加&lt;，如：&lt;心经<br>
-                    - 支持多个关键词搜索，用空格隔开，如：金刚经 般若<br>
-                    - 注意：空格用于分隔关键词，其他标点符号会被视为搜索内容的一部分（项目为考据级别）
-                </p>
-            </div>
-        </div>
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                功能说明
-            </div>
-            <div class="card-body">
-                <h5 class="card-title">首页</h5>
-                <p class="card-text">显示应用的欢迎页面，包含快速搜索功能。</p>
+    <div class="container mt-5 mb-5">
+        <h1 class="text-center mb-5">{{.translator.Translate "help" .lang}}</h1>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-lg rounded-4 mb-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "quick_start" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <h5 class="card-title">{{.translator.Translate "index_files" .lang}}</h5>
+                        <p class="card-text">
+                            1. 点击导航栏中的"{{.translator.Translate "index" .lang}}"按钮进入索引页面<br>
+                            2. 选择索引类型：目录索引或单个文件索引<br>
+                            3. 输入要索引的文件路径，或点击"浏览"按钮选择目录或文件<br>
+                            4. 输入索引密码（默认为：123456）<br>
+                            5. 点击"创建索引"按钮开始索引过程
+                        </p>
+                        <h5 class="card-title mt-4">{{.translator.Translate "search_files" .lang}}</h5>
+                        <p class="card-text">
+                            1. 在首页或任何页面的搜索框中输入关键词<br>
+                            2. 点击"{{.translator.Translate "search_button" .lang}}"按钮或按回车键<br>
+                            3. 在搜索结果页面查看匹配的文件<br>
+                            4. 点击搜索结果查看文件内容
+                        </p>
+                        <p class="card-text mt-3">
+                            <strong>{{.translator.Translate "in_directory_search" .lang}}：</strong><br>
+                            - 进入目录浏览页面，导航到您想要搜索的目录<br>
+                            - 在该页面的搜索框中输入关键词<br>
+                            - 系统会自动限制搜索范围在当前目录内<br>
+                            - 搜索结果将只包含当前目录下的匹配内容
+                        </p>
+                        <p class="card-text">
+                            <strong>{{.translator.Translate "advanced_search_tips" .lang}}：</strong><br>
+                            - 如果需要搜索目录名和文件名，只需在关键词前加&lt;，如：&lt;心经<br>
+                            - 支持多个关键词搜索，用空格隔开，如：金刚经 般若<br>
+                            - 注意：空格用于分隔关键词，其他标点符号会被视为搜索内容的一部分（项目为考据级别）
+                        </p>
+                        <h5 class="card-title mt-4">{{.translator.Translate "complex_search" .lang}}</h5>
+                        <p class="card-text">
+                            本搜索引擎支持使用多个搜索词进行复杂搜索，通过空格分隔不同的搜索词，系统会返回同时包含所有搜索词的结果。<br>
+                            1. 多个搜索词之间的逻辑关系为<strong>AND</strong>（同时包含）<br>
+                            2. 支持最多3个搜索词组合<br>
+                            3. 每个搜索词都遵循相同的精确匹配规则<br>
+                            4. 适合需要精确定位包含多个关键词的内容
+                        </p>
+                        <p class="card-text mt-2">
+                            <strong>{{.translator.Translate "complex_search_examples" .lang}}：</strong><br>
+                            - 搜索"金刚经 般若 波罗蜜"：返回同时包含"金刚经"、"般若"和"波罗蜜"的内容<br>
+                            - 搜索"道 可道 非常道"：返回同时包含这三个关键词的内容<br>
+                            - 搜索"《论语》 子曰"：返回《论语》中包含"子曰"的内容
+                        </p>
+                    </div>
+                </div>
                 
-                <h5 class="card-title mt-4">搜索</h5>
-                <p class="card-text">显示搜索结果，支持关键词高亮显示。</p>
+                <div class="card shadow-lg rounded-4 mb-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "scholarly_search_features" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <h5 class="card-title">{{.translator.Translate "what_is_scholarly_search" .lang}}</h5>
+                        <p class="card-text">
+                            考据级搜索是指本搜索引擎专为学术研究、文献考据等场景设计，提供极高精度的搜索功能。与传统搜索引擎不同，本系统不会对搜索词进行分词处理，而是将整个搜索词（包括标点符号）作为完整的匹配条件，确保搜索结果的准确性和完整性。
+                        </p>
+                        <h5 class="card-title mt-4">{{.translator.Translate "100_precise_search" .lang}}</h5>
+                        <p class="card-text">
+                            1. 只要文件已被创建索引，任何文字组合（包括标点符号）都能被100%精准搜索到<br>
+                            2. 搜索词中的每个字符（包括空格、标点符号）都会被精确匹配，不会被忽略或拆分<br>
+                            3. 支持长句、特殊符号、古籍标点等复杂搜索场景<br>
+                            4. 特别适合需要精确查找特定语句、引用或古籍原文的场景
+                        </p>
+                        <h5 class="card-title mt-4">{{.translator.Translate "no_segmentation_issues" .lang}}</h5>
+                        <p class="card-text">
+                            传统搜索引擎通常会对搜索词进行分词处理，可能导致以下问题：<br>
+                            - 长句被拆分为多个短词，失去原有的上下文关系<br>
+                            - 特殊词汇、专业术语或古籍中的生僻词汇可能被错误分词<br>
+                            - 标点符号被忽略，无法精确匹配原文<br>
+                            - 搜索结果可能包含无关内容，需要用户自行筛选
+                        </p>
+                        <p class="card-text mt-3">
+                            而本搜索引擎采用全文精确匹配技术，<strong>完全不会出现上述分词遗漏问题</strong>。无论搜索词多么复杂，只要文件中存在完全匹配的内容，就能被准确检索出来。
+                        </p>
+                        <h5 class="card-title mt-4">{{.translator.Translate "search_term_length_limit" .lang}}</h5>
+                        <p class="card-text">
+                            为了优化索引性能和搜索效率，本搜索引擎对搜索词的长度进行了限制：<br>
+                            - 单个搜索词的最大长度为<strong>5个字符</strong><br>
+                            - 如果搜索词超过5个字符，系统会自动截取前5个字符进行搜索<br>
+                            - 这个限制仅适用于单个搜索词，多个搜索词组合不受影响<br>
+                            - 例如：搜索"阿弥陀佛"（4个字符）会被完整匹配，搜索"阿弥陀佛菩萨"（6个字符）会被截取为"阿弥陀佛"（前5个字符）进行搜索
+                        </p>
+                        <p class="card-text mt-3">
+                            这个长度限制是在创建索引时设定的，确保了索引文件的合理大小和搜索的高效性，同时足以满足大多数考据和研究场景的需求。
+                        <h5 class="card-title mt-4">{{.translator.Translate "usage_examples" .lang}}</h5>
+                        <p class="card-text">
+                            - 搜索"道可道，非常道"：只会匹配包含完整这句话的文件，不会匹配单独出现"道"或"可道"的内容<br>
+                            - 搜索"《金刚经》云：凡所有相，皆是虚妄"：会精确匹配包含完整引用的文件<br>
+                            - 搜索"1+1=2"：会精确匹配包含该数学表达式的文件，包括等号和数字<br>
+                            - 搜索特殊符号组合：如"【】、「」、『』"等古籍标点，都能被精确匹配
+                        </p>
+                    </div>
+                </div>
                 
-                <h5 class="card-title mt-4">索引</h5>
-                <p class="card-text">用于索引本地文件，支持目录选择和密码保护。</p>
+                <div class="card shadow-lg rounded-4 mb-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "feature_description" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <h5 class="card-title">{{.translator.Translate "home" .lang}}</h5>
+                        <p class="card-text">显示应用的欢迎页面，包含快速搜索功能。</p>
+                        
+                        <h5 class="card-title mt-4">{{.translator.Translate "search" .lang}}</h5>
+                        <p class="card-text">显示搜索结果，支持关键词高亮显示，采用考据级精确匹配技术。</p>
+                        
+                        <h5 class="card-title mt-4">{{.translator.Translate "index" .lang}}</h5>
+                        <p class="card-text">用于索引本地文件，支持目录选择和密码保护，为精准搜索提供数据基础。</p>
+                        
+                        <h5 class="card-title mt-4">{{.translator.Translate "directory" .lang}}</h5>
+                        <p class="card-text">用于浏览已配置目录下的文件和子目录。</p>
+                        <p class="card-text mt-3">
+                            <strong>{{.translator.Translate "in_directory_search" .lang}}：</strong><br>
+                            - 在目录浏览页面，您可以直接使用页面顶部的搜索框进行搜索<br>
+                            - 系统会自动将搜索范围限制在当前浏览的目录内<br>
+                            - 搜索结果将只包含当前目录下的匹配内容<br>
+                            - 这一功能让您可以更精确地查找特定目录下的内容
+                        </p>
+                        <p class="card-text mt-2">
+                            <strong>重要提示：</strong>为了确保目录浏览功能能正常访问所有文档，建议您将所有需要索引和浏览的文档放在<strong>同一个根目录下</strong>。目录浏览功能只能访问配置中指定的单个路径，无法跨多个目录浏览。
+                        </p>
+                        <p class="card-text">
+                            <strong>使用建议：</strong><br>
+                            - 选择一个主目录作为所有文档的根目录，如：D:\Documents\Books<br>
+                            - 将所有需要索引的文档放在该根目录下或其子目录中<br>
+                            - 在索引页面中，将该根目录设置为索引路径<br>
+                            - 这样目录浏览功能就可以访问所有已索引的文档
+                        </p>
+                        
+                        <h5 class="card-title mt-4">{{.translator.Translate "status" .lang}}</h5>
+                        <p class="card-text">显示系统状态信息。</p>
+                        
+                        <h5 class="card-title mt-4">{{.translator.Translate "settings" .lang}}</h5>
+                        <p class="card-text">用于配置系统默认语言等设置。</p>
+                        
+                        <h5 class="card-title mt-4">{{.translator.Translate "article" .lang}}</h5>
+                        <p class="card-text">用于查看搜索结果中的文件内容，支持上下文浏览。</p>
+                    </div>
+                </div>
                 
-                <h5 class="card-title mt-4">状态</h5>
-                <p class="card-text">显示系统状态信息。</p>
+                <div class="card shadow-lg rounded-4 mb-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "supported_file_types" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <h5 class="card-title">{{.translator.Translate "office_files" .lang}}</h5>
+                        <ul class="list-group list-group-flush mb-4">
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .docx (Word文档)</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .xlsx (Excel表格)</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .pptx (PowerPoint演示文稿)</li>
+                            <li class="list-group-item"><i class="bi bi-x-circle text-danger me-2"></i> .ppt (旧版PowerPoint，不支持，请转换为PPTX格式)</li>
+                        </ul>
+                        
+                        <h5 class="card-title">{{.translator.Translate "html_files" .lang}}</h5>
+                        <ul class="list-group list-group-flush mb-4">
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .html</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .htm</li>
+                        </ul>
+                        
+                        <h5 class="card-title">{{.translator.Translate "text_files" .lang}}</h5>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .txt</li>
+                        </ul>
+                    </div>
+                </div>
                 
-                <h5 class="card-title mt-4">设置</h5>
-                <p class="card-text">用于配置系统默认语言等设置。</p>
+                <div class="card shadow-lg rounded-4 mb-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "usage_scope" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <h5 class="card-title">{{.translator.Translate "single_machine_usage" .lang}}</h5>
+                        <p class="card-text">
+                            应用默认配置为单机使用模式，通过 <code>http://localhost:9981</code> 访问。
+                            适合个人用户在本地电脑上索引和搜索文件。
+                        </p>
+                        
+                        <h5 class="card-title mt-4">{{.translator.Translate "lan_usage" .lang}}</h5>
+                        <p class="card-text">
+                            应用默认绑定到所有网络接口，局域网内其他设备可以直接通过服务器的IP地址访问：
+                        </p>
+                        <ul class="list-group list-group-flush mb-4">
+                            <li class="list-group-item">1. 确定服务器在局域网内的IP地址（如 <code>192.168.1.100</code>）</li>
+                            <li class="list-group-item">2. 局域网内其他设备可以通过 <code>http://[服务器IP]:9981</code> 访问</li>
+                        </ul>
+                        
+                        <h5 class="card-title">{{.translator.Translate "internet_usage" .lang}}</h5>
+                        <p class="card-text">
+                            可以将应用部署为互联网可访问的网站：
+                        </p>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">1. 将应用部署到云服务器或VPS</li>
+                            <li class="list-group-item">2. 配置服务器防火墙，开放相应端口（默认9981）</li>
+                            <li class="list-group-item">3. 可选：配置域名解析到服务器IP，使用反向代理（如Nginx）提供HTTPS支持</li>
+                        </ul>
+                    </div>
+                </div>
                 
-                <h5 class="card-title mt-4">文章</h5>
-                <p class="card-text">用于查看搜索结果中的文件内容。</p>
-            </div>
-        </div>
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                支持的文件类型
-            </div>
-            <div class="card-body">
-                <h5 class="card-title">Office文件</h5>
-                <ul class="list-group list-group-flush mb-4">
-                    <li class="list-group-item">✓ .docx (Word文档)</li>
-                    <li class="list-group-item">✓ .xlsx (Excel表格)</li>
-                    <li class="list-group-item">✓ .pptx (PowerPoint演示文稿)</li>
-                    <li class="list-group-item">✗ .ppt (旧版PowerPoint，不支持，请转换为PPTX格式)</li>
-                </ul>
-                
-                <h5 class="card-title">HTML文件</h5>
-                <ul class="list-group list-group-flush mb-4">
-                    <li class="list-group-item">✓ .html</li>
-                    <li class="list-group-item">✓ .htm</li>
-                </ul>
-                
-                <h5 class="card-title">文本文件</h5>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">✓ .txt</li>
-                </ul>
-            </div>
-        </div>
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                使用范围
-            </div>
-            <div class="card-body">
-                <h5 class="card-title">单机使用</h5>
-                <p class="card-text">
-                    应用默认配置为单机使用模式，通过 <code>http://localhost:9981</code> 访问。
-                    适合个人用户在本地电脑上索引和搜索文件。
-                </p>
-                
-                <h5 class="card-title mt-4">局域网使用</h5>
-                <p class="card-text">
-                    应用默认绑定到所有网络接口，局域网内其他设备可以直接通过服务器的IP地址访问：
-                </p>
-                <ul class="list-group list-group-flush mb-4">
-                    <li class="list-group-item">1. 确定服务器在局域网内的IP地址（如 <code>192.168.1.100</code>）</li>
-                    <li class="list-group-item">2. 局域网内其他设备可以通过 <code>http://[服务器IP]:9981</code> 访问</li>
-                </ul>
-                
-                <h5 class="card-title">互联网使用</h5>
-                <p class="card-text">
-                    可以将应用部署为互联网可访问的网站：
-                </p>
-                <ul class="list-group list-group-flush">
-                    <li class="list-group-item">1. 将应用部署到云服务器或VPS</li>
-                    <li class="list-group-item">2. 配置服务器防火墙，开放相应端口（默认9981）</li>
-                    <li class="list-group-item">3. 可选：配置域名解析到服务器IP，使用反向代理（如Nginx）提供HTTPS支持</li>
-                </ul>
-            </div>
-        </div>
-        <div class="card mb-4">
-            <div class="card-header bg-primary text-white">
-                常见问题
-            </div>
-            <div class="card-body">
-                <h5 class="card-title">1. 索引页面无法访问？</h5>
-                <p class="card-text">索引页面只允许本地访问（127.0.0.1），请确保从本地浏览器访问。</p>
-                
-                <h5 class="card-title mt-4">2. 索引密码是什么？</h5>
-                <p class="card-text">默认密码是"123456"，可以在config.yaml文件中修改。</p>
-                
-                <h5 class="card-title mt-4">3. 如何修改默认语言？</h5>
-                <p class="card-text">进入设置页面，选择默认语言并点击保存按钮。</p>
-                
-                <h5 class="card-title mt-4">4. 搜索结果不完整？</h5>
-                <p class="card-text">请确保相关文件已经被索引，索引过程可能需要一些时间。</p>
-                
-                <h5 class="card-title mt-4">5. 如何更新索引？</h5>
-                <p class="card-text">如果文件内容发生变化，只需重新建立索引即可更新索引数据。在索引页面中，选择相同的目录或文件，然后点击"创建索引"按钮重新索引。</p>
+                <div class="card shadow-lg rounded-4 mb-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "faq" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <h5 class="card-title">1. 索引页面无法访问？</h5>
+                        <p class="card-text">索引页面只允许本地访问（127.0.0.1），请确保从本地浏览器访问。</p>
+                        
+                        <h5 class="card-title mt-4">2. 索引密码是什么？</h5>
+                        <p class="card-text">默认密码是"123456"，可以在config.yaml文件中修改。</p>
+                        
+                        <h5 class="card-title mt-4">3. 如何修改默认语言？</h5>
+                        <p class="card-text">进入设置页面，选择默认语言并点击保存按钮。</p>
+                        
+                        <h5 class="card-title mt-4">4. 搜索结果不完整？</h5>
+                        <p class="card-text">请确保相关文件已经被索引，索引过程可能需要一些时间。</p>
+                        
+                        <h5 class="card-title mt-4">5. 如何更新索引？</h5>
+                        <p class="card-text">如果文件内容发生变化，只需重新建立索引即可更新索引数据。在索引页面中，选择相同的目录或文件，然后点击"创建索引"按钮重新索引。</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

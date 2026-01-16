@@ -1,13 +1,8 @@
 <!DOCTYPE html>
 <html lang="{{.lang}}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
-    <!-- Bootstrap 5.3 CSS -->
-    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom CSS -->
-    <link href="/static/css/custom.css" rel="stylesheet">
+     {{template "static" .}}
+    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>   
 </head>
 <body>
     {{template "navbar" .}}
@@ -20,18 +15,29 @@
     </header>
 
     <!-- Main Content -->
-    <div class="container mt-5">       
-        <div id="search-results">
-            {{if .query}}
-            <h2>{{.translator.Translate "search_results" .lang}}: {{.query}}</h2>
-            <div class="spinner-border" role="status">
-                <span class="visually-hidden">{{.translator.Translate "loading" .lang}}</span>
+    <div class="container mt-5 mb-5">       
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-lg rounded-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "search_results" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <div id="search-results">
+                            {{if .query}}
+                            <h3 class="mb-4">{{.query}}</h3>
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">{{.translator.Translate "loading" .lang}}</span>
+                            </div>
+                            <div id="results-container" class="mt-3"></div>
+                            <div id="pagination-container" class="mt-3"></div>
+                            {{else}}
+                            <p class="text-muted">{{.translator.Translate "search_placeholder" .lang}}</p>
+                            {{end}}
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div id="results-container" class="mt-3"></div>
-            <div id="pagination-container" class="mt-3"></div>
-            {{else}}
-            <p>{{.translator.Translate "search_placeholder" .lang}}</p>
-            {{end}}
         </div>
     </div>
 
@@ -130,11 +136,23 @@
             const query = "{{.query}}";
             const limit = 21; // 每页显示21条
             
+            // 从URL获取分页参数
+            function getPageFromUrl() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const pageParam = urlParams.get('page');
+                if (pageParam) {
+                    const page = parseInt(pageParam);
+                    return page > 0 ? page : 1;
+                }
+                return 1;
+            }
+            
             if (query) {
                 // 直接在页面加载时显示分页控件
                 showPaginationControls();
-                // 加载第一页结果
-                loadResults(1);
+                // 加载指定页结果，从URL获取页码
+                const initialPage = getPageFromUrl();
+                loadResults(initialPage);
             }
             
 
@@ -215,6 +233,16 @@
 
             
             function loadResults(page) {
+                // 更新URL，保持查询参数并添加页码
+                const url = new URL(window.location.href);
+                url.searchParams.set('q', query);
+                url.searchParams.set('page', page);
+                window.history.pushState({ page: page }, `第 ${page} 页`, url.toString());
+                
+                // 从URL获取did参数
+                const urlParams = new URLSearchParams(window.location.search);
+                const did = urlParams.get('did') || '0';
+                
                 const start = (page - 1) * limit;
                 const container = document.getElementById('results-container');
                 const spinner = document.querySelector('.spinner-border');
@@ -223,9 +251,9 @@
                 spinner.style.display = 'inline-block';
                 container.innerHTML = '';
                 
-                console.log('Loading results for page', page, 'start:', start, 'limit:', limit);
+                console.log('Loading results for page', page, 'start:', start, 'limit:', limit, 'did:', did);
                 
-                fetch(`/api/search?q=${encodeURIComponent(query)}&start=${start}&limit=${limit}&lang={{.lang}}`)
+                fetch(`/api/search?q=${encodeURIComponent(query)}&start=${start}&limit=${limit}&lang={{.lang}}&did=${did}`)
                     .then(response => response.json())
                     .then(data => {
                         console.log('API Response:', data);
@@ -291,16 +319,20 @@
                             `;
                             container.appendChild(paginationInfo);
                             
-                            // 更新分页控件
-                            updatePaginationControls(page);
+                            // 更新分页控件，传递结果数量和有结果标志
+                            updatePaginationControls(page, data.results.length, true);
                         } else {
                             container.innerHTML = `<p>{{.translator.Translate "no_results" .lang}}</p>`;
+                            // 更新分页控件，传递无结果标志
+                            updatePaginationControls(page, 0, false);
                         }
                     })
                     .catch(error => {
                         console.error('Error:', error);
                         spinner.style.display = 'none';
                         container.innerHTML = `<p>{{.translator.Translate "error" .lang}}</p>`;
+                        // 更新分页控件，传递无结果标志
+                        updatePaginationControls(page, 0, false);
                     });
             }
             
@@ -357,7 +389,7 @@
                 });
             }
             
-            function updatePaginationControls(currentPage) {
+            function updatePaginationControls(currentPage, currentResults = 0, hasResults = true) {
                 const pageInfo = document.getElementById('page-info');
                 const prevBtn = document.getElementById('prev-btn');
                 const nextBtn = document.getElementById('next-btn');
@@ -367,16 +399,25 @@
                 
                 // 更新按钮状态
                 prevBtn.disabled = currentPage === 1;
-                nextBtn.disabled = currentPage >= 100; // 最多支持100页
+                
+                // 如果没有结果，或者返回的记录数量不足一页，或者已经是最后一页，禁用下一页按钮
+                nextBtn.disabled = currentPage >= 100 || !hasResults || currentResults < limit;
                 
                 // 存储当前状态
                 sessionStorage.setItem('currentPage', currentPage);
                 
-                console.log('Updated pagination controls:', currentPage);
+                console.log('Updated pagination controls:', currentPage, 'currentResults:', currentResults, 'hasResults:', hasResults, 'limit:', limit);
             }
             
             function getCurrentPage() {
-                return parseInt(sessionStorage.getItem('currentPage') || '1');
+                // 从URL获取页码，如果没有则返回1
+                const urlParams = new URLSearchParams(window.location.search);
+                const pageParam = urlParams.get('page');
+                if (pageParam) {
+                    const page = parseInt(pageParam);
+                    return page > 0 ? page : 1;
+                }
+                return 1;
             }
         });
     </script>

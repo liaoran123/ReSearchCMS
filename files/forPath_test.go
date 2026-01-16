@@ -83,27 +83,19 @@ func Test_ForPath2(T *testing.T) {
 
 // 发现问题，数据存在转换不对，导致错乱。
 func Test_ForPath4(T *testing.T) {
-	/*
-		TraversePathAndReadFiles("E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论")
 
-		fmt.Println("----------dir--------------------")
-		iter := db.Tables["dir"].ForData()
-		defer iter.Release()
-		rd := iter.GetRecords(true)
-		fmt.Println(len(rd))
-		fmt.Println("------------------------------")
-		for _, record := range rd {
-			fmt.Println(record)
-		}
-	*/
-	iter1 := db.Tables["senc"].Search(&map[string]any{
-		"content": "般若",
-	})
-	defer iter1.Release()
-	rd1 := iter1.GetRecords(true, 21, 21)
-	for _, record := range rd1 {
-		fmt.Println(record["did"], record["secNo"], record["content"])
+	TraversePathAndReadFiles("E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论")
+
+	fmt.Println("----------dir--------------------")
+	iter := db.Tables["dir"].ForData()
+	defer iter.Release()
+	rd := iter.GetRecords(true)
+	fmt.Println(len(rd))
+	fmt.Println("------------------------------")
+	for _, record := range rd {
+		fmt.Println(record)
 	}
+
 }
 func Test_ForPath5(T *testing.T) {
 	iter1 := db.Tables["senc"].Search(&map[string]any{
@@ -171,9 +163,9 @@ func Test_ForPath6(T *testing.T) {
 
 }
 func Test_ForPath7(T *testing.T) {
-	//打开目录id为48的名称
+	//打开目录id为1489的名称
 	iterdir := db.Tables["dir"].Search(&map[string]any{
-		"id": 48,
+		"id": 1489,
 	}, util.Equal)
 	defer iterdir.Release()
 	rddir := iterdir.GetRecords(true).Select("name", "url")
@@ -181,9 +173,9 @@ func Test_ForPath7(T *testing.T) {
 	url := rddir[0]["url"].(string)
 	fmt.Println(title, url)
 
-	//打开文章id为48的内容
+	//打开文章id为1489的内容
 	itersenc := db.Tables["senc"].Search(&map[string]any{
-		"did":   48,
+		"did":   1489,
 		"secNo": nil,
 	})
 	defer itersenc.Release()
@@ -196,4 +188,16 @@ func Test_ForPath7(T *testing.T) {
 		text.WriteString(strings.ReplaceAll(content, "\n", "<br />"))
 	}
 	fmt.Println(text.String())
+}
+
+func Test_ForPath8(T *testing.T) {
+	//通过url匹配文章id为1489的id
+	iterdir := db.Tables["dir"].Search(&map[string]any{
+		"url": "E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论\\108-六祖坛经\\02-般若品第二.txt",
+	}, util.Equal)
+	defer iterdir.Release()
+	rddir := iterdir.GetRecords(true).Select("id")
+	id := rddir[0]["id"].(int)
+	fmt.Println(id)
+
 }

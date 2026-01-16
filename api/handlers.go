@@ -5,6 +5,8 @@ import (
 	"ReSearch/db"
 	"ReSearch/files"
 	"ReSearch/services"
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"os"
@@ -45,7 +47,14 @@ func SearchHandler(c *gin.Context) {
 	// 开始计时
 	startTime := time.Now()
 
-	results, totalCount, err := services.Search(query, start, limit)
+	// 从查询参数获取did，默认值为0
+	didStr := c.DefaultQuery("did", "0")
+	did, err := strconv.Atoi(didStr)
+	if err != nil {
+		did = 0
+	}
+
+	results, totalCount, err := services.Search(query, did, start, limit)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "搜索失败: " + err.Error(),
@@ -114,11 +123,13 @@ func IndexPathHandler(c *gin.Context) {
 		Path       string `json:"path" binding:"required"`
 		Password   string `json:"password" binding:"required"`
 		SaveAsRoot bool   `json:"saveAsRoot"`
+		Lang       string `json:"lang"`
 	}
 
+	// 尝试解析请求体
 	if err := c.ShouldBindJSON(&request); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "无效的请求参数",
+			"error": "无效的请求参数: " + err.Error(),
 		})
 		return
 	}
@@ -144,14 +155,16 @@ func IndexPathHandler(c *gin.Context) {
 		}
 	}
 
+	// 同步执行索引
 	err := files.TraversePathAndReadFiles(request.Path)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "目录索引失败: " + err.Error(),
+			"error": "索引失败: " + err.Error(),
 		})
 		return
 	}
 
+	// 索引成功后返回响应
 	message := "目录索引成功"
 	if request.SaveAsRoot {
 		message += "，并已保存为总目录"
@@ -195,6 +208,15 @@ func StatusHandler(c *gin.Context) {
 
 // UploadLogoHandler 处理logo上传请求
 func UploadLogoHandler(c *gin.Context) {
+	// 只允许本机访问上传logo功能
+	clientIP := c.ClientIP()
+	if clientIP != "127.0.0.1" && clientIP != "::1" {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Access denied. Only local access allowed.",
+		})
+		return
+	}
+
 	// 获取上传的文件
 	file, err := c.FormFile("logo")
 	if err != nil {
@@ -205,25 +227,62 @@ func UploadLogoHandler(c *gin.Context) {
 	}
 
 	// 验证文件类型
-	ext := file.Filename[len(file.Filename)-4:]
-	if ext != ".jpg" && ext != ".png" && ext != ".gif" && ext != "jpeg" {
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	if ext != ".jpg" && ext != ".jpeg" && ext != ".png" && ext != ".gif" {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": "只支持 JPG、PNG、GIF 格式的图片",
 		})
 		return
 	}
 
-	// 保存文件到static/images目录
-	dst := "./web/static/images/logo.png"
-	if err := c.SaveUploadedFile(file, dst); err != nil {
+	// 使用绝对路径保存logo，确保在Windows上正常工作
+	// 获取当前工作目录
+	cwd, err := os.Getwd()
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "保存文件失败: " + err.Error(),
+			"error": "获取当前工作目录失败: " + err.Error(),
 		})
 		return
 	}
 
-	// 重定向回设置页面
-	c.Redirect(http.StatusFound, "/settings?logoMessage=Logo上传成功&lang="+c.PostForm("lang"))
+	// 构建logo保存目录的绝对路径
+	dstDir := filepath.Join(cwd, "web", "static", "images")
+	if _, err := os.Stat(dstDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dstDir, 0755); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "创建保存目录失败: " + err.Error(),
+				"path":  dstDir,
+			})
+			return
+		}
+	}
+
+	// 构建logo文件的绝对路径
+	dst := filepath.Join(dstDir, "logo.png")
+
+	// 保存文件到static/images目录
+	if err := c.SaveUploadedFile(file, dst); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "保存文件失败: " + err.Error(),
+			"path":  dst,
+		})
+		return
+	}
+
+	// 生成随机字符串作为版本号，防止浏览器缓存旧的logo
+	randomBytes := make([]byte, 16)
+	if _, err := rand.Read(randomBytes); err != nil {
+		// 如果生成随机数据失败，使用当前时间戳
+		version := strconv.FormatInt(time.Now().UnixNano(), 10)
+		c.Redirect(http.StatusFound, "/settings?logoMessage=Logo上传成功&lang="+c.PostForm("lang")+"&v="+version)
+		return
+	}
+
+	// 将随机数据转换为base64字符串，用于清除缓存
+	version := base64.URLEncoding.EncodeToString(randomBytes)
+
+	// 重定向回设置页面，添加版本参数以防止缓存
+	c.Redirect(http.StatusFound, "/settings?logoMessage=Logo上传成功&lang="+c.PostForm("lang")+"&v="+version)
 }
 
 // GetSuggestionsHandler 处理搜索建议请求
@@ -486,8 +545,8 @@ func ArticleContentHandler(c *gin.Context) {
 }
 
 // readDirectory 读取目录内容
-func readDirectory(path string) ([]map[string]string, error) {
-	var items []map[string]string
+func readDirectory(path string) ([]map[string]any, error) {
+	var items []map[string]any
 
 	// 读取目录内容
 	files, err := os.ReadDir(path)
@@ -495,19 +554,39 @@ func readDirectory(path string) ([]map[string]string, error) {
 		return nil, err
 	}
 
+	// 查询所有目录记录，用于匹配文件路径
+	iterdir := db.Tables["dir"].ForData()
+	allDirs := iterdir.GetRecords(true).Select("id", "url")
+	iterdir.Release()
+
 	for _, file := range files {
-		item := map[string]string{
-			"name": file.Name(),
-			"path": filepath.Join(path, file.Name()),
-		}
-
+		itemType := "file"
 		if file.IsDir() {
-			item["type"] = "directory"
-		} else {
-			item["type"] = "file"
+			itemType = "directory"
 		}
 
-		items = append(items, item)
+		itemPath := filepath.Join(path, file.Name())
+		var articleId int
+
+		// 如果是文件，查找匹配的文章ID
+		if !file.IsDir() {
+			// 遍历所有目录记录，查找匹配的文件路径
+			for _, dirRecord := range allDirs {
+				dbUrl := dirRecord["url"].(string)
+				// 尝试不同的匹配方式
+				if dbUrl == itemPath || filepath.ToSlash(dbUrl) == filepath.ToSlash(itemPath) {
+					articleId = dirRecord["id"].(int)
+					break
+				}
+			}
+		}
+
+		items = append(items, map[string]any{
+			"name":      file.Name(),
+			"type":      itemType,
+			"path":      itemPath,
+			"articleId": articleId,
+		})
 	}
 
 	return items, nil

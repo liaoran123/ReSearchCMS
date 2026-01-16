@@ -10,7 +10,7 @@
         </span>
         <div class="position-relative flex-grow-1">
             <input id="searchInput" class="form-control" style="height: 100%; font-size: 18px;" type="search" autocomplete="off"
-                placeholder="{{.translator.Translate "search_placeholder" .lang}}" aria-label="Search" name="q">
+                placeholder="{{.translator.Translate "search_placeholder" .lang}}" aria-label="Search" name="q" value="{{.query}}">
             <div id="search-suggestions"
                 class="position-absolute w-100 bg-white border border-secondary rounded-bottom shadow-lg"
                 style="display: none; z-index: 1000;">
@@ -20,6 +20,8 @@
             </div>
         </div>
         <input type="hidden" name="lang" value="{{.lang}}">
+        <!-- 动态添加的did字段，用于传递当前目录ID -->
+        <input type="hidden" id="searchDid" name="did" value="0">
         <button class="btn btn-primary" style="height: 100%; font-size: 18px;" type="submit">{{.translator.Translate
             "search_button" .lang}}</button>
     </div>
@@ -35,6 +37,9 @@
             const searchForm = document.querySelector('form[action="/search"]');
             if (searchForm) {
                 searchForm.addEventListener('submit', function(e) {
+                    // 在提交前更新当前目录ID
+                    setCurrentDirectoryId();
+                    
                     const searchInput = this.querySelector('input[name="q"]');
                     const query = searchInput.value.trim();
                     if (query) {
@@ -235,11 +240,6 @@
             // 添加新的查询到开头
             history.unshift(query);
             
-            // 限制记录数量为10条
-            if (history.length > 10) {
-                history = history.slice(0, 10);
-            }
-            
             // 保存到本地存储
             localStorage.setItem('searchHistory', JSON.stringify(history));
             
@@ -333,6 +333,39 @@
             history.splice(index, 1);
             localStorage.setItem('searchHistory', JSON.stringify(history));
             loadSearchHistory();
+        }
+        
+        // 设置当前目录ID到搜索表单
+        function setCurrentDirectoryId() {
+            // 获取搜索表单的did字段
+            const didInput = document.getElementById('searchDid');
+            if (!didInput) return;
+            
+            // 查找面包屑导航的最后一个li元素
+            const breadcrumb = document.getElementById('breadcrumb');
+            if (!breadcrumb) {
+                // 如果没有面包屑导航，说明不在目录页面，将did设置为0
+                didInput.value = '0';
+                return;
+            }
+            
+            const lastLi = breadcrumb.querySelector('li:last-child');
+            if (!lastLi) {
+                // 如果没有最后一个li元素，将did设置为0
+                didInput.value = '0';
+                return;
+            }
+            
+            // 获取data-dir-id属性值
+            const dirId = lastLi.getAttribute('data-dir-id');
+            if (!dirId) {
+                // 如果没有data-dir-id属性，将did设置为0
+                didInput.value = '0';
+                return;
+            }
+            
+            // 设置到搜索表单的did字段
+            didInput.value = dirId;
         }
     </script>
 {{end}}

@@ -1,13 +1,9 @@
 <!DOCTYPE html>
 <html lang="{{.lang}}">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {{template "static" .}}
     <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
-    <!-- Bootstrap 5.3 CSS -->
-    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
-    <!-- Custom CSS -->
-    <link href="/static/css/custom.css" rel="stylesheet">
+  
 </head>
 <body>
     {{template "navbar" .}}
@@ -20,56 +16,82 @@
     </header>
 
     <!-- Main Content -->
-    <div class="container mt-5">
-        <h1>{{.translator.Translate "settings" .lang}}</h1>
-        <div class="card">
-            <div class="card-header bg-primary text-white">
-                {{.translator.Translate "language" .lang}}
-            </div>
-            <div class="card-body">
-                {{if .message}}
-                <div class="alert alert-success" role="alert">
-                    {{.message}}
-                </div>
-                {{end}}
-                <form action="/settings" method="post">
-                    <div class="mb-3">
-                        <label for="defaultLanguage" class="form-label">{{.translator.Translate "language" .lang}}</label>
-                        <select class="form-select" id="defaultLanguage" name="defaultLanguage">
-                            {{range .languages}}
-                            <option value="{{.}}" {{if eq . $.lang}}selected{{end}}>{{.}}</option>
-                            {{end}}
-                        </select>
+    <div class="container mt-5 mb-5">
+        <h1 class="text-center mb-5">{{.translator.Translate "settings" .lang}}</h1>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <!-- 语言设置卡片 -->
+                <div class="card shadow-lg rounded-4 mb-5">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "language" .lang}}</h2>
                     </div>
-                    <input type="hidden" name="lang" value="{{.lang}}">
-                    <button type="submit" class="btn btn-primary">保存</button>
-                </form>
-            </div>
-        </div>
-        <div class="card mt-4">
-            <div class="card-header bg-primary text-white">
-                Logo设置
-            </div>
-            <div class="card-body">
-                {{if .logoMessage}}
-                <div class="alert alert-success" role="alert">
-                    {{.logoMessage}}
-                </div>
-                {{end}}
-                <div class="text-center mb-4">
-                    <img src="/static/images/logo.png" alt="Current Logo" class="img-fluid" style="max-height: 150px;">
-                </div>
-                <form action="/api/upload/logo" method="post" enctype="multipart/form-data">
-                    <div class="mb-3">
-                        <label for="logoFile" class="form-label">上传新Logo</label>
-                        <input class="form-control" type="file" id="logoFile" name="logo" accept="image/*">
-                        <div class="form-text mt-1">
-                            支持的格式：JPG、PNG、GIF。建议尺寸：200x200像素。
+                    <div class="card-body p-5">
+                        {{if .message}}
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>{{.translator.Translate "success" .lang}}：</strong>{{.message}}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                         </div>
+                        {{end}}
+                        <form action="/settings" method="post">
+                            <div class="mb-4">
+                                <label for="defaultLanguage" class="form-label fw-bold">{{.translator.Translate "language" .lang}}</label>
+                                <select class="form-select form-select-lg" id="defaultLanguage" name="defaultLanguage">
+                                    {{range .languages}}
+                                    <option value="{{.}}" {{if eq . $.lang}}selected{{end}}>{{.}}</option>
+                                    {{end}}
+                                </select>
+                                <div class="form-text mt-1 text-muted">
+                                    <i class="bi bi-info-circle"></i> {{.translator.Translate "select_preferred_language" .lang}}
+                                </div>
+                            </div>
+                            <input type="hidden" name="lang" value="{{.lang}}">
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg rounded-pill">
+                                    <i class="bi bi-save"></i> {{.translator.Translate "save_language_settings" .lang}}
+                                </button>
+                            </div>
+                        </form>
                     </div>
-                    <input type="hidden" name="lang" value="{{.lang}}">
-                    <button type="submit" class="btn btn-primary">上传Logo</button>
-                </form>
+                </div>
+                
+                <!-- Logo设置卡片 -->
+                <div class="card shadow-lg rounded-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "logo_settings" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        {{if .logoMessage}}
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <strong>{{.translator.Translate "success" .lang}}：</strong>{{.logoMessage}}
+                            <div class="mt-2">
+                                <strong>{{.translator.Translate "note" .lang}}：</strong>{{.translator.Translate "logo_cache_note" .lang}}
+                            </div>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {{end}}
+                        <div class="text-center mb-4">
+                            <img src="/static/images/logo.png{{if .v}}?v={{.v}}{{end}}" alt="Current Logo" class="img-fluid" style="max-height: 150px;">
+                        </div>
+                        <form action="/api/upload/logo" method="post" enctype="multipart/form-data">
+                            <div class="mb-4">
+                                <label for="logoFile" class="form-label fw-bold">{{.translator.Translate "upload_new_logo" .lang}}</label>
+                                <input class="form-control form-control-lg" type="file" id="logoFile" name="logo" accept="image/*">
+                                <div class="form-text mt-1 text-muted">
+                                    <i class="bi bi-file-earmark-image"></i> {{.translator.Translate "supported_logo_formats" .lang}}
+                                </div>
+                            </div>
+                            <input type="hidden" name="lang" value="{{.lang}}">
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary btn-lg rounded-pill">
+                                    <i class="bi bi-upload"></i> {{.translator.Translate "upload_logo" .lang}}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
