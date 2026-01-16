@@ -153,24 +153,53 @@
                     })
                 })
                 .then(response => {
-                    if (!response.ok) {
-                        throw new Error('网络请求失败');
-                    }
-                    return response.json();
+                    // 无论响应状态如何，都尝试解析 JSON 响应
+                    return response.json().then(data => {
+                        return {
+                            ok: response.ok,
+                            status: response.status,
+                            data: data
+                        };
+                    });
                 })
-                .then(data => {
-                    if (data.error) {
-                        resultDiv.innerHTML = `<div class="alert alert-danger" role="alert">索引失败: ${data.error}</div>`;
+                .then(result => {
+                    if (result.ok) {
+                        // 响应成功（200-299 状态码）
+                        if (result.data.error) {
+                            // 业务逻辑错误
+                            resultDiv.innerHTML = `<div class="alert alert-danger" role="alert">索引失败: ${result.data.error}</div>`;
+                        } else {
+                            // 成功创建索引
+                            resultDiv.innerHTML = `<div class="alert alert-success" role="alert">索引成功: ${result.data.message}<br>3秒后将自动返回主页...</div>`;
+                            // 3秒后返回主页，保持按钮禁用状态
+                            setTimeout(() => {
+                                window.location.href = '/';
+                            }, 3000);
+                        }
                     } else {
-                        resultDiv.innerHTML = `<div class="alert alert-success" role="alert">索引成功: ${data.message}</div>`;
+                        // 响应失败（非 200-299 状态码）
+                        let errorMessage = '网络请求失败';
+                        if (result.data && result.data.error) {
+                            // 如果后端返回了错误信息，使用后端返回的信息
+                            errorMessage = result.data.error;
+                        } else if (result.status === 401) {
+                            // 密码错误的特殊处理
+                            errorMessage = '密码错误';
+                        } else if (result.status === 400) {
+                            errorMessage = '请求参数错误';
+                        } else if (result.status === 500) {
+                            errorMessage = '服务器内部错误';
+                        }
+                        resultDiv.innerHTML = `<div class="alert alert-danger" role="alert">索引失败: ${errorMessage}</div>`;
                     }
+                    // 无论成功失败，都启用按钮
+                    submitButton.disabled = false;
+                    submitButton.innerHTML = '创建索引';
                 })
                 .catch(error => {
                     console.error('Error:', error);
-                    resultDiv.innerHTML = `<div class="alert alert-danger" role="alert">错误: ${error.message}</div>`;
-                })
-                .finally(() => {
-                    // 重新启用提交按钮
+                    resultDiv.innerHTML = `<div class="alert alert-danger" role="alert">索引失败: 网络请求失败</div>`;
+                    // 发生错误时启用按钮
                     submitButton.disabled = false;
                     submitButton.innerHTML = '创建索引';
                 });

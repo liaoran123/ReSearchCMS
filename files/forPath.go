@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -23,10 +22,16 @@ func init() {
 	// 初始化全局Pool，数据库插入属于IO密集型任务，使用专门的IO Pool
 	globalPool = pool.NewPoolForIO()
 	//batch = db.Store.GetBatch()
+	currentTime = time.Now().Format("2006-01-02 15:04:05")
 }
 
+var currentTime string
+
+const spstr = `。.!?？！；;\n`
+
 // 定义中英文句子分隔符的正则表达式
-var re = regexp.MustCompile(`([。.!?？！；;\n]+)`)
+// 使用字符类 [\n] 确保换行符被正确匹配
+//var re = regexp.MustCompile(regexpstr)
 
 // TraversePathAndReadFiles 根据给定路径遍历读取所有文本文件内容
 func TraversePathAndReadFiles(rootPath string) error {
@@ -146,44 +151,62 @@ func addSentence(did, secNo int, content string) error {
 }
 
 func AddArticle(did int, content string) error {
-	// 使用带括号的正则表达式分割，保留分隔符
-	parts := re.Split(content, -1)
+	//将原来的换行符替换为当前时间戳换行符标识
+	content = strings.ReplaceAll(content, "\n", currentTime+"\n")
+	//将所有分隔符附加上换行符
+	for _, sep := range spstr {
+		content = strings.ReplaceAll(content, string(sep), string(sep)+"\n")
+	}
+	parts := strings.Split(content, "\n")
 	// 过滤空字符串和纯空白字符串，并合并分隔符
 	secNo := 0
-	var currentSentence string
-	for i, part := range parts {
+	// 遍历所有部分
+	for _, part := range parts {
 		trimmed := strings.TrimSpace(part)
 		if trimmed == "" {
 			continue
 		}
-		// 如果是奇数索引，说明是分隔符
-		if i%2 == 1 {
-			// 将分隔符添加到当前句子
-			currentSentence += part
-		} else {
-			// 如果有前一个句子，保存它
-			if currentSentence != "" {
-				secNo++
-				// 保存句子到数据库
-				err := addSentence(did, secNo, currentSentence)
-				if err != nil {
-					return err
-				}
-				currentSentence = ""
-			}
-			// 开始新句子
-			currentSentence = part
-		}
-	}
-	// 处理最后一个句子
-	if currentSentence != "" {
+		//恢复换行符
+		trimmed = strings.ReplaceAll(trimmed, currentTime, "\n")
 		secNo++
-		// 保存句子到数据库
-		err := addSentence(did, secNo, currentSentence)
+		// 插入文章到数据库
+		err := addSentence(did, secNo, trimmed)
+		if err != nil {
+			return err
+		}
+
+	}
+	return nil
+}
+
+/*
+
+
+func AddArticle(did int, content string) error {
+	//将原来的换行符替换为当前时间戳换行符标识
+	content = strings.ReplaceAll(content, "\n", currentTime+"\n")
+	//将所有分隔符附加上换行符
+	for _, sep := range spstr {
+		content = strings.ReplaceAll(content, string(sep), string(sep)+"\n")
+	}
+	// 使用带括号的正则表达式分割，保留分隔符
+	parts := strings.Split(content, "\n")
+	// 过滤空字符串和纯空白字符串，并合并分隔符
+	secNo := 0
+	// 遍历所有部分
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed == "" {
+			continue
+		}
+		secNo++
+		err := addSentence(did, secNo, trimmed)
 		if err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
+
+
+*/

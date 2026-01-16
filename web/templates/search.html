@@ -273,7 +273,7 @@
                                                         </svg>
                                                     </button>
                                                 </div>
-                                                ${result.path ? `<span class="card-link" style="font-size: 16px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder" viewBox="0 0 16 16"><path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.994 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.994-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31zM2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4H2.19zm4.69-1.707A1 1 0 0 0 6.172 2H2a1 1 0 0 0-1 1v.87a1 1 0 0 0 .293.707L2.707 4H6.172z"/></svg> ${result.path}</span> <a href="/article/${did}" class="card-link" style="font-size: 16px; margin-left: 10px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-text" viewBox="0 0 16 16"><path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z"/><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg> 打开快照</a>` : ''}
+                                                ${result.path ? `<span class="card-link" style="font-size: 16px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder" viewBox="0 0 16 16"><path d="M.54 3.87.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3h3.982a2 2 0 0 1 1.994 2.181l-.637 7A2 2 0 0 1 13.174 14H2.826a2 2 0 0 1-1.994-1.819l-.637-7a1.99 1.99 0 0 1 .342-1.31zM2.19 4a1 1 0 0 0-.996 1.09l.637 7a1 1 0 0 0 .995.91h10.348a1 1 0 0 0 .995-.91l.637-7A1 1 0 0 0 13.81 4H2.19zm4.69-1.707A1 1 0 0 0 6.172 2H2a1 1 0 0 0-1 1v.87a1 1 0 0 0 .293.707L2.707 4H6.172z"/></svg> ${result.path}</span> <a href="/article/${did}" class="card-link" target="_blank" style="font-size: 16px; margin-left: 10px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-text" viewBox="0 0 16 16"><path d="M5 4a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm-.5 2.5A.5.5 0 0 1 5 6h6a.5.5 0 0 1 0 1H5a.5.5 0 0 1-.5-.5zM5 8a.5.5 0 0 0 0 1h6a.5.5 0 0 0 0-1H5zm0 2a.5.5 0 0 0 0 1h3a.5.5 0 0 0 0-1H5z"/><path d="M2 2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm10-1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1z"/></svg> 打开快照</a>` : ''}
                                             </div>
                                         </div>
                                     </div>
@@ -308,14 +308,25 @@
             function highlightSearchTerm(text, term) {
                 if (!term) return text;
                 
-                // 转义正则表达式特殊字符
-                const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                // 将搜索词按空格分隔成多个关键词
+                const terms = term.split(' ');
                 
-                // 创建正则表达式，忽略大小写
-                const regex = new RegExp(`(${escapedTerm})`, 'gi');
+                // 对每个关键词进行高亮处理
+                let highlightedText = text;
+                terms.forEach(word => {
+                    if (word.trim()) {
+                        // 转义正则表达式特殊字符
+                        const escapedTerm = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        
+                        // 创建正则表达式，忽略大小写
+                        const regex = new RegExp(`(${escapedTerm})`, 'gi');
+                        
+                        // 替换匹配的文本，添加加粗标签
+                        highlightedText = highlightedText.replace(regex, '<strong class="bg-yellow-100 text-yellow-800 px-0.5 rounded">$1</strong>');
+                    }
+                });
                 
-                // 替换匹配的文本，添加加粗标签
-                return text.replace(regex, '<strong class="bg-yellow-100 text-yellow-800 px-0.5 rounded">$1</strong>');
+                return highlightedText;
             }
             
             function showPaginationControls() {

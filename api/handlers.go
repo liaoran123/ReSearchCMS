@@ -471,17 +471,17 @@ func ArticleContentHandler(c *gin.Context) {
 	defer itersenc.Release()
 	rdsenc := itersenc.GetRecords(true).Select("content")
 
-	var text string
+	var text strings.Builder
 	for _, record := range rdsenc {
 		content := record["content"].(string)
 		//将回车符转换为<br />
-		text += strings.ReplaceAll(content, "\n", "<br />")
+		text.WriteString(strings.ReplaceAll(content, "\n", "<br />"))
 	}
 
 	c.JSON(http.StatusOK, gin.H{
 		"title":   title,
 		"url":     url,
-		"content": text,
+		"content": text.String(),
 	})
 }
 

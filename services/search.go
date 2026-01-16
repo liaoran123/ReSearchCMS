@@ -28,6 +28,10 @@ func Search(query string, start, limit int) ([]SearchResult, int, error) {
 	if len(words) > 3 {
 		words = words[:3]
 	}
+	/*
+		对应sql语句
+		select * from senc where content like words0 and content like words1 and content like words2 order by content asc
+	*/
 	iters := make([]*engine.TableIter, len(words))
 	for i, word := range words {
 		iters[i] = db.Tables["senc"].Search(&map[string]any{
