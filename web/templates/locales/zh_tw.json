@@ -141,5 +141,11 @@
   "commercial_price_range": "商業版的價格範圍是多少？",
   "commercial_price_depends": "商業版價格根據組織規模、使用需求和定制化程度而定，請聯繫我們獲取詳細報價",
   "functional_difference": "免費版和商業版有功能區別嗎？",
-  "core_features_same": "核心功能完全相同，商業版額外提供技術支持和定制化服務"
+  "core_features_same": "核心功能完全相同，商業版額外提供技術支持和定制化服務",
+  "lang_name_zh": "簡體中文",
+  "lang_name_zh_tw": "繁體中文",
+  "lang_name_en": "English",
+  "lang_name_ja": "日本語",
+  "lang_name_ko": "한국어",
+  "lang_name_th": "ภาษาไทย"
 }

@@ -141,5 +141,11 @@
   "commercial_price_range": "商用版の価格範囲は？",
   "commercial_price_depends": "商用版の価格は組織の規模、使用ニーズ、カスタマイズのレベルに依存します。詳細な見積もりはお問い合わせください。",
   "functional_difference": "無料版と商用版の機能に違いはありますか？",
-  "core_features_same": "コア機能は完全に同じです。商用版には追加の技術サポートとカスタマイズサービスが提供されます。"
+  "core_features_same": "コア機能は完全に同じです。商用版には追加の技術サポートとカスタマイズサービスが提供されます。",
+  "lang_name_zh": "簡体字中国語",
+  "lang_name_zh_tw": "繁体字中国語",
+  "lang_name_en": "英語",
+  "lang_name_ja": "日本語",
+  "lang_name_ko": "韓国語",
+  "lang_name_th": "タイ語"
 }

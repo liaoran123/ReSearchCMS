@@ -41,7 +41,7 @@
                     </button>
                     <ul class="dropdown-menu" aria-labelledby="languageDropdown">
                         {{range .languages}}
-                        <li><a class="dropdown-item" href="?lang={{.}}{{if $.query}}&q={{$.query}}{{end}}">{{.}}</a></li>
+                        <li><a class="dropdown-item" href="?lang={{.}}{{if $.query}}&q={{$.query}}{{end}}">{{$.translator.Translate (print "lang_name_" .) $.lang}}</a></li>
                         {{end}}
                     </ul>
                 </div>

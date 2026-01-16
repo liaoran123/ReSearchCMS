@@ -141,5 +141,11 @@
   "commercial_price_range": "商业版的价格范围是多少？",
   "commercial_price_depends": "商业版价格根据组织规模、使用需求和定制化程度而定，请联系我们获取详细报价",
   "functional_difference": "免费版和商业版有功能区别吗？",
-  "core_features_same": "核心功能完全相同，商业版额外提供技术支持和定制化服务"
+  "core_features_same": "核心功能完全相同，商业版额外提供技术支持和定制化服务",
+  "lang_name_zh": "简体中文",
+  "lang_name_zh_tw": "繁体中文",
+  "lang_name_en": "English",
+  "lang_name_ja": "日本語",
+  "lang_name_ko": "한국어",
+  "lang_name_th": "ภาษาไทย"
 }

@@ -141,5 +141,11 @@
   "commercial_price_range": "What is the price range for the commercial version?",
   "commercial_price_depends": "Commercial version price depends on organization size, usage needs and customization level, please contact us for detailed quotation",
   "functional_difference": "Is there a functional difference between the free and commercial versions?",
-  "core_features_same": "Core features are exactly the same, commercial version additionally provides technical support and customized services"
+  "core_features_same": "Core features are exactly the same, commercial version additionally provides technical support and customized services",
+  "lang_name_zh": "Simplified Chinese",
+  "lang_name_zh_tw": "Traditional Chinese",
+  "lang_name_en": "English",
+  "lang_name_ja": "Japanese",
+  "lang_name_ko": "Korean",
+  "lang_name_th": "Thai"
 }

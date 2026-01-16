@@ -141,5 +141,11 @@
   "commercial_price_range": "상용 버전의 가격 범위는 어떻게 되나요?",
   "commercial_price_depends": "상용 버전의 가격은 조직 규모, 사용 요구 및 맞춤화 수준에 따라 달라집니다. 자세한 견적은 문의하세요.",
   "functional_difference": "무료 버전과 상용 버전의 기능 차이가 있나요?",
-  "core_features_same": "코어 기능은 완전히 동일합니다. 상용 버전에는 추가 기술 지원과 맞춤화 서비스가 제공됩니다."
+  "core_features_same": "코어 기능은 완전히 동일합니다. 상용 버전에는 추가 기술 지원과 맞춤화 서비스가 제공됩니다.",
+  "lang_name_zh": "간체 중국어",
+  "lang_name_zh_tw": "번체 중국어",
+  "lang_name_en": "영어",
+  "lang_name_ja": "일본어",
+  "lang_name_ko": "한국어",
+  "lang_name_th": "태국어"
 }
