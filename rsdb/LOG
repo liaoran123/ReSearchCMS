@@ -5341,3 +5341,12 @@
 07:09:28.466112 version@stat F·[0 59 494] S·1GiB[0B 98MiB 972MiB] Sc·[0.00 0.99 0.97]
 07:09:28.837194 db@janitor F·555 G·0
 07:09:28.837194 db@open done T·376.9442ms
+=============== Jan 17, 2026 (CST) ===============
+07:55:13.975853 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+07:55:14.139429 version@stat F·[0 59 494] S·1GiB[0B 98MiB 972MiB] Sc·[0.00 0.99 0.97]
+07:55:14.140461 db@open opening
+07:55:14.146807 journal@recovery F·1
+07:55:14.147731 journal@recovery recovering @2191
+07:55:14.149339 version@stat F·[0 59 494] S·1GiB[0B 98MiB 972MiB] Sc·[0.00 0.99 0.97]
+07:55:14.186790 db@janitor F·555 G·0
+07:55:14.186790 db@open done T·46.3287ms

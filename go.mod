@@ -9,7 +9,7 @@ require (
 	gopkg.in/yaml.v3 v3.0.1
 )
 
-replace github.com/liaoran123/sfsDb => d:/MyGo/src/sfsDb
+//replace github.com/liaoran123/sfsDb => d:/MyGo/src/sfsDb
 
 require (
 	github.com/bytedance/sonic v1.9.1 // indirect
