@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="{{.lang}}">
+<head>
+    {{template "static" .}}
+    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
+   
+</head>
+<body>
+    {{template "navbar" .}}
+
+    <!-- Header with Search Box -->
+    <header class="bg-light py-1">
+        <div class="container">
+            <div class="jumbotron">
+                <div class="text-center mb-4">
+                    <img src="/static/images/logo.png" alt="Search Engine Logo" class="img-fluid" style="max-height: 200px;">
+                </div>
+                <hr class="my-4">
+                 {{template "searchinput" .}}
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mt-5 mb-5">
+        <h1 class="text-center mb-5">{{.translator.Translate "search_history" .lang}}</h1>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-lg rounded-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "recent_searches" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <div id="history-tags" class="d-flex flex-wrap gap-2 mb-4">
+                            <span class="badge bg-secondary">暂无搜索历史</span>
+                        </div>
+                        <div>
+                            <button id="clear-history" class="btn btn-danger btn-lg rounded-pill">清空搜索历史</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{template "footer" .}}
+    
+    <!-- Bootstrap Icons -->
+    <link rel="stylesheet" href="/static/css/bootstrap-icons.css">
+</body>
+</html>

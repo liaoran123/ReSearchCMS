@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="{{.lang}}">
+<head>
+    {{template "static" .}}
+    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
+   
+</head>
+<body>
+    {{template "navbar" .}}
+
+    <!-- Header with Search Box -->
+    <header class="bg-light py-1">
+        <div class="container">         
+           {{template "searchinput" .}}
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mt-5 mb-5">
+        <h1 class="text-center mb-5">{{.translator.Translate "article" .lang}}</h1>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-lg rounded-4">
+                    <div class="card-header bg-primary text-white rounded-top-4" id="article-header">
+                        <h2 class="h5 mb-0">{{.translator.Translate "article" .lang}} {{.articleId}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <div id="article-content">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">{{.translator.Translate "loading" .lang}}</span>
+                            </div>
+                            <p class="mt-2">{{.translator.Translate "loading" .lang}}...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{template "footer" .}}
+    <script>
+        // 加载文章内容
+        document.addEventListener('DOMContentLoaded', function() {
+            const articleId = "{{.articleId}}";
+            const lang = "{{.lang}}";
+            const contentContainer = document.getElementById('article-content');
+            
+            // 显示加载状态
+            contentContainer.innerHTML = `
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">{{.translator.Translate "loading" .lang}}</span>
+                </div>
+                <p class="mt-2">{{.translator.Translate "loading" .lang}}...</p>
+            `;
+            
+            // 从API获取文章内容
+            fetch(`/api/article/${articleId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    // 更新卡片头部显示文章标题
+                    const headerContainer = document.getElementById('article-header');
+                    headerContainer.innerHTML = `<h2 class="h5 mb-0">${data.title}</h2>`;
+                    
+                    // 渲染文章内容
+                    contentContainer.innerHTML = `
+                        <h1 class="mb-4">${data.title}</h1>
+                        <div class="text-muted mb-4">
+                            <small><i class="bi bi-file-earmark me-1"></i>{{.translator.Translate "path" .lang}}: ${data.url}</small>
+                        </div>
+                        <div class="mb-4" style="font-size: 16px; line-height: 1.8;">
+                            ${data.content}
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error loading article content:', error);
+                    contentContainer.innerHTML = `
+                        <div class="alert alert-danger" role="alert">
+                            <i class="bi bi-exclamation-circle me-2"></i>
+                            {{.translator.Translate "error_loading_article" .lang}}
+                        </div>
+                    `;
+                });
+        });
+    </script>
+</body>
+</html>

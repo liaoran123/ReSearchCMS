@@ -33,36 +33,40 @@ func saveConfigToFile(filePath string, cfg *config.Config) error {
 // WebServer web服务器结构体
 type WebServer struct {
 	translator *i18n.Translator
+	baseDir    string
 }
 
 // NewWebServer 创建一个新的web服务器实例
-func NewWebServer(translator *i18n.Translator) *WebServer {
+func NewWebServer(translator *i18n.Translator, baseDir string) *WebServer {
 	return &WebServer{
 		translator: translator,
+		baseDir:    baseDir,
 	}
 }
 
 // SetupRoutes 设置web路由
 func (w *WebServer) SetupRoutes(r *gin.Engine) {
 	// 设置静态文件目录
-	r.Static("/static", "./web/static")
+	staticDir := filepath.Join(w.baseDir, "web", "static")
+	r.Static("/static", staticDir)
 
 	// 加载主模板文件
+	templatesDir := filepath.Join(w.baseDir, "web", "templates")
 	r.LoadHTMLFiles(
-		"./web/templates/index.html",
-		"./web/templates/search.html",
-		"./web/templates/index-page.html",
-		"./web/templates/status.html",
-		"./web/templates/settings.html",
-		"./web/templates/article.html",
-		"./web/templates/help.html",
-		"./web/templates/pricing.html",
-		"./web/templates/contact.html",
-		"./web/templates/directory.html",
-		"./web/templates/partials/searchinput.html",
-		"./web/templates/partials/navbar.html",
-		"./web/templates/partials/footer.html",
-		"./web/templates/partials/static.html",
+		filepath.Join(templatesDir, "index.html"),
+		filepath.Join(templatesDir, "search.html"),
+		filepath.Join(templatesDir, "index-page.html"),
+		filepath.Join(templatesDir, "status.html"),
+		filepath.Join(templatesDir, "settings.html"),
+		filepath.Join(templatesDir, "article.html"),
+		filepath.Join(templatesDir, "help.html"),
+		filepath.Join(templatesDir, "pricing.html"),
+		filepath.Join(templatesDir, "contact.html"),
+		filepath.Join(templatesDir, "directory.html"),
+		filepath.Join(templatesDir, "partials", "searchinput.html"),
+		filepath.Join(templatesDir, "partials", "navbar.html"),
+		filepath.Join(templatesDir, "partials", "footer.html"),
+		filepath.Join(templatesDir, "partials", "static.html"),
 	)
 
 	// 主路由

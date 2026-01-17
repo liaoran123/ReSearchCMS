@@ -1,0 +1,24 @@
+package main
+
+import (
+	"ReSearch/i18n"
+	"fmt"
+	"path/filepath"
+)
+
+func main() {
+	// 初始化翻译器
+	translator := i18n.NewTranslator()
+	localesDir := filepath.Join(".", "web", "templates", "locales")
+	
+	// 加载语言文件
+	if err := translator.LoadLocales(localesDir); err != nil {
+		fmt.Printf("Error loading locales: %v\n", err)
+		return
+	}
+	
+	// 打印支持的语言列表
+	supportedLangs := translator.GetSupportedLanguages()
+	fmt.Printf("Supported languages: %v\n", supportedLangs)
+	fmt.Printf("Number of supported languages: %d\n", len(supportedLangs))
+}

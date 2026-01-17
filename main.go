@@ -7,6 +7,7 @@ import (
 	"ReSearch/web"
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -17,9 +18,16 @@ import (
 )
 
 func main() {
+	// 获取可执行文件所在目录的绝对路径
+	execPath, err := os.Executable()
+	if err != nil {
+		log.Fatalf("Error getting executable path: %v", err)
+	}
+	baseDir := filepath.Dir(execPath)
+
 	// 初始化多语言支持
 	translator := i18n.NewTranslator()
-	localesDir := filepath.Join(".", "web", "templates", "locales")
+	localesDir := filepath.Join(baseDir, "web", "templates", "locales")
 	if err := translator.LoadLocales(localesDir); err != nil {
 		log.Printf("Error loading locales: %v", err)
 	}
@@ -45,7 +53,7 @@ func main() {
 	api.SetupRoutes(r)
 
 	// 设置 Web 路由
-	webServer := web.NewWebServer(translator)
+	webServer := web.NewWebServer(translator, baseDir)
 	webServer.SetupRoutes(r)
 
 	// 设置健康检查端点

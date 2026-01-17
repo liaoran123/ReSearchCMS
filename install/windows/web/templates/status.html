@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="{{.lang}}">
+<head>
+     {{template "static" .}}
+    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
+</head>
+<body>
+    {{template "navbar" .}}
+
+    <!-- Header with Search Box -->
+    <header class="bg-light py-1">
+        <div class="container">
+            {{template "searchinput" .}}
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mt-5 mb-5">
+        <h1 class="text-center mb-5">{{.translator.Translate "status" .lang}}</h1>
+        
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <div class="card shadow-lg rounded-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "health_check" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">{{.translator.Translate "loading" .lang}}</span>
+                        </div>
+                        <div id="status-container" class="mt-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {{template "footer" .}}
+    <script>
+        // 加载状态信息
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Status page loaded, fetching status...');
+            
+            // 确保容器和加载动画元素存在
+            const container = document.getElementById('status-container');
+            const spinner = document.querySelector('.spinner-border');
+            
+            if (!container || !spinner) {
+                console.error('Container or spinner element not found');
+                return;
+            }
+            
+            try {
+                // 尝试获取状态信息
+                fetch(`/api/status?lang={{.lang}}`)
+                    .then(response => {
+                        console.log('Status API response received:', response);
+                        
+                        // 检查响应状态
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok: ' + response.statusText);
+                        }
+                        
+                        // 检查响应类型
+                        const contentType = response.headers.get('content-type');
+                        if (!contentType || !contentType.includes('application/json')) {
+                            throw new Error('Expected JSON response but got: ' + contentType);
+                        }
+                        
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log('Status data received:', data);
+                        
+                        // 隐藏加载动画
+                        spinner.style.display = 'none';
+                        
+                        // 检查数据是否有效
+                        if (!data) {
+                            throw new Error('Empty response data');
+                        }
+                        
+                        // 显示状态信息
+                        if (data.status === 'ok' || data.status === 'running') {
+                            container.innerHTML = `
+                                <div class="alert alert-success" role="alert">
+                                    ${data.message || '{{.translator.Translate "service_running" .lang}}'}
+                                </div>
+                                <div class="mt-3">
+                                    <h5>{{.translator.Translate "indexed_files" .lang}}: ${data.documents || data.indexed_files || 0}</h5>
+                                    <h5>{{.translator.Translate "indexed_sentences" .lang}}: ${data.indexed_sentences || 0}</h5>
+                                    <h5>{{.translator.Translate "last_updated" .lang}}: ${data.last_updated || '{{.translator.Translate "unknown" .lang}}'}</h5>
+                                </div>
+                            `;
+                        } else {
+                            container.innerHTML = `
+                                <div class="alert alert-danger" role="alert">
+                                    {{.translator.Translate "service_stopped" .lang}}
+                                </div>
+                            `;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        
+                        // 隐藏加载动画
+                        spinner.style.display = 'none';
+                        
+                        // 显示错误信息
+                        container.innerHTML = `
+                            <div class="alert alert-danger" role="alert">
+                                错误: ${error.message}
+                            </div>
+                        `;
+                    });
+            } catch (error) {
+                console.error('Unexpected error:', error);
+                
+                // 隐藏加载动画
+                spinner.style.display = 'none';
+                
+                // 显示错误信息
+                container.innerHTML = `
+                    <div class="alert alert-danger" role="alert">
+                        意外错误: ${error.message}
+                    </div>
+                `;
+            }
+        });
+    </script>
+</body>
+</html>
