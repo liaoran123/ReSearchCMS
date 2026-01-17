@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="{{.lang}}">
+<head>
+     {{template "static" .}}
+    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
+   
+</head>
+<body>
+    {{template "navbar" .}}
+
+    <!-- Header with Search Box -->
+    <header class="bg-light py-1">
+        <div class="container">
+            {{template "searchinput" .}}
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="container mt-5 mb-5">
+        <h1 class="text-center mb-5">{{.translator.Translate "contact_us" .lang}}</h1>
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card shadow-lg rounded-4">
+                    <div class="card-header bg-primary text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "studio_info" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <h5 class="card-title">{{.translator.Translate "studio_name" .lang}}</h5>
+                        <p class="card-text">
+                            我们是专业的文档搜索引擎开发团队，致力于为用户提供高效、准确的文档搜索体验。
+                        </p>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item">
+                                <strong><i class="bi bi-envelope me-2"></i>{{.translator.Translate "email" .lang}}：</strong>
+                                <a href="mailto:sfsweb@qq.com">sfsweb@qq.com</a>
+                            </li>
+                            <li class="list-group-item">
+                                <strong><i class="bi bi-clock me-2"></i>{{.translator.Translate "service_time" .lang}}：</strong>
+                                周一至周五 9:00-18:00
+                            </li>
+                            <li class="list-group-item">
+                                <strong><i class="bi bi-check-circle me-2"></i>{{.translator.Translate "business_scope" .lang}}：</strong>
+                                文档搜索引擎开发、定制化搜索解决方案、企业级搜索服务
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card shadow-lg rounded-4">
+                    <div class="card-header bg-success text-white rounded-top-4">
+                        <h2 class="h5 mb-0">{{.translator.Translate "contact_form" .lang}}</h2>
+                    </div>
+                    <div class="card-body p-5">
+                        <form>
+                            <div class="mb-4">
+                                <label for="contactName" class="form-label fw-bold">{{.translator.Translate "name" .lang}}</label>
+                                <input type="text" class="form-control form-control-lg" id="contactName" placeholder="{{.translator.Translate "please_enter_your_name" .lang}}">
+                            </div>
+                            <div class="mb-4">
+                                <label for="contactEmail" class="form-label fw-bold">{{.translator.Translate "email" .lang}}</label>
+                                <input type="email" class="form-control form-control-lg" id="contactEmail" placeholder="{{.translator.Translate "please_enter_your_email" .lang}}">
+                            </div>
+                            <div class="mb-4">
+                                <label for="contactSubject" class="form-label fw-bold">{{.translator.Translate "subject" .lang}}</label>
+                                <input type="text" class="form-control form-control-lg" id="contactSubject" placeholder="{{.translator.Translate "please_enter_contact_subject" .lang}}">
+                            </div>
+                            <div class="mb-4">
+                                <label for="contactMessage" class="form-label fw-bold">{{.translator.Translate "message" .lang}}</label>
+                                <textarea class="form-control form-control-lg" id="contactMessage" rows="4" placeholder="{{.translator.Translate "please_enter_your_message" .lang}}"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-success btn-lg rounded-pill">
+                                <i class="bi bi-send"></i> {{.translator.Translate "send_message" .lang}}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card mt-5 shadow-lg rounded-4">
+            <div class="card-header bg-info text-white rounded-top-4">
+                <h2 class="h5 mb-0">{{.translator.Translate "faq" .lang}}</h2>
+            </div>
+            <div class="card-body p-5">
+                <h5 class="card-title">{{.translator.Translate "how_to_get_commercial_quote" .lang}}</h5>
+                <p class="card-text">
+                    请通过邮箱联系我们，提供您的具体需求和联系方式，我们会在1-2个工作日内回复您的报价。
+                </p>
+                <h5 class="card-title mt-4">{{.translator.Translate "how_to_apply_for_free_usage" .lang}}</h5>
+                <p class="card-text">
+                    请通过邮箱联系我们，提供您的公益机构注册证明和使用需求，我们会审核后为您提供免费使用权限。
+                </p>
+                <h5 class="card-title mt-4">{{.translator.Translate "how_to_get_technical_support" .lang}}</h5>
+                <p class="card-text">
+                    商业版用户可以直接通过邮箱联系我们获得技术支持，个人用户可以参考帮助页面或在GitHub上提交Issue。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    {{template "footer" .}}
+</body>
+</html>

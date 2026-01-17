@@ -20,6 +20,13 @@ go build -o build/ReSearch-linux-amd64 main.go
 echo ✓ Linux amd64 版本编译完成！
 echo.
 
+REM macOS amd64 (支持)
+echo 编译 macOS amd64 版本...
+go env -w GOOS=darwin GOARCH=amd64
+go build -o build/ReSearch-macos-amd64 main.go
+echo ✓ macOS amd64 版本编译完成！
+echo.
+
 REM 恢复默认环境
 go env -w GOOS=windows GOARCH=amd64
 echo.
@@ -27,8 +34,7 @@ echo 编译完成！输出文件位于 build 目录。
 echo 成功构建的平台：
 echo - Windows amd64
 echo - Linux amd64
-echo.
-echo 注意：由于依赖库限制，其他平台可能需要额外配置。
+echo - macOS amd64
 echo.
 dir build
 echo.

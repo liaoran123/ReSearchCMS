@@ -1,0 +1,7 @@
+web:
+    port: 9981
+    password: "123456"
+    lang: zh
+    filepath: D:\MyGo\src\sfsApp\qldzj
+db:
+    filepath: ./rsdb

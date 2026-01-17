@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="{{.lang}}">
+<head>
+    {{template "static" .}}
+    <title>{{.title}} - {{.translator.Translate "app_name" .lang}}</title>
+   
+</head>
+<body>
+    {{template "navbar" .}}
+
+    <!-- Main Content -->
+    <div class="container mt-5">
+        {{template "content" .}}
+    </div>
+
+    {{template "footer" .}}
+  
+</body>
+</html>

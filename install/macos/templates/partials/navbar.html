@@ -1,0 +1,52 @@
+ {{define "navbar"}}
+ <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/?lang={{.lang}}">{{.translator.Translate "app_name" .lang}}</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link {{if eq .active "home"}}active{{end}}" aria-current="{{if eq .active "home"}}page{{end}}" href="/?lang={{.lang}}">{{.translator.Translate "home" .lang}}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{if eq .active "search"}}active{{end}}" aria-current="{{if eq .active "search"}}page{{end}}" href="/search?lang={{.lang}}">{{.translator.Translate "search" .lang}}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{if eq .active "index"}}active{{end}}" aria-current="{{if eq .active "index"}}page{{end}}" href="/index?lang={{.lang}}">{{.translator.Translate "index" .lang}}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{if eq .active "status"}}active{{end}}" aria-current="{{if eq .active "status"}}page{{end}}" href="/status?lang={{.lang}}">{{.translator.Translate "status" .lang}}</a>
+                    </li>                    <li class="nav-item">
+                        <a class="nav-link {{if eq .active "settings"}}active{{end}}" aria-current="{{if eq .active "settings"}}page{{end}}" href="/settings?lang={{.lang}}">{{.translator.Translate "settings" .lang}}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{if eq .active "directory"}}active{{end}}" aria-current="{{if eq .active "directory"}}page{{end}}" href="/directory?lang={{.lang}}">{{.translator.Translate "directory" .lang}}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{if eq .active "pricing"}}active{{end}}" aria-current="{{if eq .active "pricing"}}page{{end}}" href="/pricing?lang={{.lang}}">{{.translator.Translate "pricing" .lang}}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{if eq .active "contact"}}active{{end}}" aria-current="{{if eq .active "contact"}}page{{end}}" href="/contact?lang={{.lang}}">{{.translator.Translate "contact" .lang}}</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {{if eq .active "help"}}active{{end}}" aria-current="{{if eq .active "help"}}page{{end}}" href="/help?lang={{.lang}}">{{.translator.Translate "help" .lang}}</a>
+                    </li>                </ul>
+                <!-- Language Selector -->
+                <div class="dropdown">
+                    <button class="btn btn-outline-light dropdown-toggle" type="button" id="languageDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        {{.translator.Translate "language" .lang}}
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="languageDropdown">
+                        {{range .languages}}
+                        <li><a class="dropdown-item" href="?lang={{.}}{{if $.query}}&q={{$.query}}{{end}}">{{$.translator.Translate (print "lang_name_" .) $.lang}}</a></li>
+                        {{end}}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+    {{end}}
+   
