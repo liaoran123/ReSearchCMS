@@ -27,34 +27,44 @@ func init() {
 
 var currentTime string
 
-const spstr = `。.!?？！；;\n`
-
-// 定义中英文句子分隔符的正则表达式
-// 使用字符类 [\n] 确保换行符被正确匹配
-//var re = regexp.MustCompile(regexpstr)
+const spstr = `。!?？！；;\n` //支持中文为主的分隔符
+//const spstr = `。.!?？！；;\n`
 
 // TraversePathAndReadFiles 根据给定路径遍历读取所有文本文件内容
-func TraversePathAndReadFiles(rootPath string) error {
+func TraversePathAndReadFiles(rootPath string) (map[string]int, map[string]int, error) {
 	btime := time.Now()
 	//打印btime
 	fmt.Printf("开始遍历路径 %s 时间: %v\n", rootPath, btime)
 	var currentID int
-	var err error
+	//var err error
 	var content string
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 	var errs []error
+	// 定义一个map，用于统计所有的文件类型数量
+	fileTypes := make(map[string]int)
+	// 定义一个map，用于统计不支持的文件类型数量
+	unsupportedFiles := make(map[string]int)
 
-	err = filepath.Walk(rootPath,
+	_ = filepath.Walk(rootPath,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
+			/*
+				if path == `E:\工具\代理\ChromeGo\chrome-user-data\Default\Extensions\bhghoamapcdpbohphigoooaddinpkbai\8.0.1_0\_locales\id` {
+					fmt.Println(path)
+				}*/
 			ext := filepath.Ext(path)
+			//统计文件类型数量
+			if ext == "" {
+				fileTypes["目录"]++
+			} else {
+				fileTypes[ext]++
+			}
 			//检测目录是否存在
 			dirurliter := db.Tables["dir"].Search(&map[string]any{
 				"url": path,
-				//"ext": ext, //文件后缀
 			}, util.Equal)
 			defer dirurliter.Release()
 			if dirurliter.Exist() {
@@ -62,7 +72,12 @@ func TraversePathAndReadFiles(rootPath string) error {
 				if len(record) == 0 {
 					fmt.Printf("目录 %s 不存在记录\n", path)
 				}
-				currentID = record[0]["id"].(int)
+				if record[0]["id"] != nil {
+					currentID = record[0]["id"].(int)
+				} else {
+					fmt.Printf("目录 %s 存在记录，但id字段为空\n", path)
+					currentID = -1
+				}
 				if len(record) > 1 {
 					fmt.Printf("目录 %s 存在多个记录: %v\n", path, record)
 				}
@@ -82,7 +97,13 @@ func TraversePathAndReadFiles(rootPath string) error {
 			if !info.IsDir() {
 				content, err = ReadFileContent(path)
 				if err != nil {
-					return err
+					content = "" // 读取失败时，内容设为空字符串
+					//以后缀名分组统计不支持文件数量
+					if ext == "" {
+						unsupportedFiles["其他"]++
+					} else {
+						unsupportedFiles[ext]++
+					}
 				}
 			} else {
 				content = ""
@@ -125,9 +146,9 @@ func TraversePathAndReadFiles(rootPath string) error {
 
 	// 返回第一个错误
 	if len(errs) > 0 {
-		return errs[0]
+		return fileTypes, unsupportedFiles, errs[0]
 	}
-	return err
+	return fileTypes, unsupportedFiles, nil
 }
 
 // addSentence 保存句子到数据库
@@ -178,35 +199,3 @@ func AddArticle(did int, content string) error {
 	}
 	return nil
 }
-
-/*
-
-
-func AddArticle(did int, content string) error {
-	//将原来的换行符替换为当前时间戳换行符标识
-	content = strings.ReplaceAll(content, "\n", currentTime+"\n")
-	//将所有分隔符附加上换行符
-	for _, sep := range spstr {
-		content = strings.ReplaceAll(content, string(sep), string(sep)+"\n")
-	}
-	// 使用带括号的正则表达式分割，保留分隔符
-	parts := strings.Split(content, "\n")
-	// 过滤空字符串和纯空白字符串，并合并分隔符
-	secNo := 0
-	// 遍历所有部分
-	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
-		if trimmed == "" {
-			continue
-		}
-		secNo++
-		err := addSentence(did, secNo, trimmed)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-
-*/

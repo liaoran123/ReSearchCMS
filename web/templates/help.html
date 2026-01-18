@@ -49,7 +49,7 @@
                         </p>
                         <p class="card-text">
                             <strong>{{.translator.Translate "advanced_search_tips" .lang}}：</strong><br>
-                            - 如果需要搜索目录名和文件名，只需在关键词前加&lt;，如：&lt;心经<br>
+                            - 如果需要搜索目录名和文件名，只需在关键词前面加&lt;，或在后面加&gt;，如搜索：&lt;心经 或 心经&gt;<br>
                             - 支持多个关键词搜索，用空格隔开，如：金刚经 般若<br>
                             - 注意：空格用于分隔关键词，其他标点符号会被视为搜索内容的一部分（项目为考据级别）
                         </p>
@@ -170,7 +170,9 @@
                         <h5 class="card-title">{{.translator.Translate "office_files" .lang}}</h5>
                         <ul class="list-group list-group-flush mb-4">
                             <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .docx (Word文档)</li>
+                            <li class="list-group-item"><i class="bi bi-x-circle text-danger me-2"></i> .doc (旧版Word，不支持，请转换为DOCX格式)</li>
                             <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .xlsx (Excel表格)</li>
+                            <li class="list-group-item"><i class="bi bi-x-circle text-danger me-2"></i> .xls (旧版Excel，不支持，请转换为XLSX格式)</li>
                             <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .pptx (PowerPoint演示文稿)</li>
                             <li class="list-group-item"><i class="bi bi-x-circle text-danger me-2"></i> .ppt (旧版PowerPoint，不支持，请转换为PPTX格式)</li>
                         </ul>
@@ -183,7 +185,11 @@
                         
                         <h5 class="card-title">{{.translator.Translate "text_files" .lang}}</h5>
                         <ul class="list-group list-group-flush">
-                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .txt</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 普通文本文件: .txt</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 配置文件: .json, .yaml, .yml, .toml, .ini, .conf, .cfg, .xml</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 代码文件: .go, .py, .java, .js, .ts, .jsx, .tsx, .css, .scss, .md, .rb, .php, .cpp, .c, .h, .hpp, .cs, .swift, .kt, .rs</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 日志和脚本文件: .log, .sql, .sh, .bash, .cmd, .bat, .ps1</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 其他常见文本文件: .rst, .text, .markdown, .adoc, .asciidoc, .tex, .latex, .bib, .properties, .resx, .strings, .po, .mo</li>
                         </ul>
                     </div>
                 </div>

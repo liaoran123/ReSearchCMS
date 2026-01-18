@@ -102,8 +102,8 @@ func IndexHandler(c *gin.Context) {
 		})
 		return
 	}
-
-	err := files.TraversePathAndReadFiles(filePath)
+	// 调用文件索引函数
+	fileTypes, unsupportedFiles, err := files.TraversePathAndReadFiles(filePath)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "索引失败: " + err.Error(),
@@ -112,8 +112,10 @@ func IndexHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": "文件索引成功",
-		"path":    filePath,
+		"message":          "文件索引成功",
+		"path":             filePath,
+		"fileTypes":        fileTypes,
+		"unsupportedFiles": unsupportedFiles,
 	})
 }
 
@@ -156,7 +158,7 @@ func IndexPathHandler(c *gin.Context) {
 	}
 
 	// 同步执行索引
-	err := files.TraversePathAndReadFiles(request.Path)
+	fileTypes, unsupportedFiles, err := files.TraversePathAndReadFiles(request.Path)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "索引失败: " + err.Error(),
@@ -171,8 +173,10 @@ func IndexPathHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message": message,
-		"path":    request.Path,
+		"message":          message,
+		"path":             request.Path,
+		"fileTypes":        fileTypes,
+		"unsupportedFiles": unsupportedFiles,
 	})
 }
 
@@ -204,6 +208,50 @@ func StatusHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, status)
+}
+
+// SaveRootPathHandler 处理保存根路径请求
+func SaveRootPathHandler(c *gin.Context) {
+	var request struct {
+		Path     string `json:"path" binding:"required"`
+		Password string `json:"password" binding:"required"`
+	}
+
+	// 尝试解析请求体
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"success": false,
+			"error":   "无效的请求参数: " + err.Error(),
+		})
+		return
+	}
+
+	// 验证密码
+	if request.Password != config.Cfg.Web.Password {
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"success": false,
+			"error":   "密码错误",
+		})
+		return
+	}
+
+	// 保存路径到配置
+	config.Cfg.Web.Path = request.Path
+	// 保存配置到文件
+	err := saveConfigToFile("config.yaml", config.Cfg)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"success": false,
+			"error":   "保存配置失败: " + err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"success": true,
+		"message": "路径已成功保存为总目录",
+		"path":    request.Path,
+	})
 }
 
 // UploadLogoHandler 处理logo上传请求

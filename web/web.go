@@ -270,6 +270,7 @@ func (w *WebServer) DirectoryPageHandler(c *gin.Context) {
 	}
 
 	var directoryItems []gin.H
+	var readDirError error
 	if currentPath != "" {
 		// 直接调用本地readDirectory函数，返回固定的articleId=1，确保超链接正常显示
 		items, err := w.readDirectory(currentPath)
@@ -280,72 +281,40 @@ func (w *WebServer) DirectoryPageHandler(c *gin.Context) {
 		} else {
 			// 调试输出：错误信息
 			fmt.Printf("Error reading directory %s: %v\n", currentPath, err)
+			readDirError = err
 		}
 	}
 
 	// 查询当前目录的ID
-	var currentDirId int
+	currentDirId := -1
 
-	// 调试输出：当前路径
-	fmt.Printf("[DEBUG] Raw current path: %s\n", currentPath)
+	// 只有当currentPath不为空时才查询目录ID
+	if currentPath != "" {
+		// 调试输出：当前路径
+		fmt.Printf("[DEBUG] Raw current path: %s\n", currentPath)
 
-	// 处理路径格式，确保与数据库中的格式匹配
-	processedPath := currentPath
-	// 确保路径使用正确的分隔符（根据数据库存储格式调整）
-	processedPath = strings.ReplaceAll(processedPath, "\\", "/")
+		// 处理路径格式，确保与数据库中的格式匹配
+		processedPath := currentPath
+		// 确保路径使用正确的分隔符（根据数据库存储格式调整）
+		processedPath = strings.ReplaceAll(processedPath, "\\", "/")
 
-	fmt.Printf("[DEBUG] Processed path: %s\n", processedPath)
+		fmt.Printf("[DEBUG] Processed path: %s\n", processedPath)
 
-	// 1. 先尝试使用完整路径匹配当前目录
-	iterDirCurrent := db.Tables["dir"].Search(&map[string]any{
-		"url": processedPath,
-	}, util.Equal)
-	rdDirCurrent := iterDirCurrent.GetRecords(true).Select("id", "url")
-	iterDirCurrent.Release()
-
-	fmt.Printf("[DEBUG] Full path search found %d records\n", len(rdDirCurrent))
-	if len(rdDirCurrent) > 0 {
-		currentDirId = rdDirCurrent[0]["id"].(int)
-		fmt.Printf("[DEBUG] Found ID: %d for path: %s\n", currentDirId, rdDirCurrent[0]["url"])
-	} else {
-		// 2. 尝试使用原始路径格式（反斜杠）匹配
-		iterDirCurrentRaw := db.Tables["dir"].Search(&map[string]any{
-			"url": currentPath,
+		// 1. 先尝试使用完整路径匹配当前目录
+		iterDirCurrent := db.Tables["dir"].Search(&map[string]any{
+			"url": processedPath,
 		}, util.Equal)
-		rdDirCurrentRaw := iterDirCurrentRaw.GetRecords(true).Select("id", "url")
-		iterDirCurrentRaw.Release()
-
-		fmt.Printf("[DEBUG] Raw path search found %d records\n", len(rdDirCurrentRaw))
-		if len(rdDirCurrentRaw) > 0 {
-			currentDirId = rdDirCurrentRaw[0]["id"].(int)
-			fmt.Printf("[DEBUG] Found ID: %d for raw path: %s\n", currentDirId, rdDirCurrentRaw[0]["url"])
-		} else {
-			// 3. 如果完整路径匹配失败，尝试使用文件名匹配
-			currentDirName := filepath.Base(currentPath)
-			fmt.Printf("[DEBUG] Searching by directory name: %s\n", currentDirName)
-
-			iterDirCurrentName := db.Tables["dir"].Search(&map[string]any{
-				"name": currentDirName,
-			}, util.Equal)
-			rdDirCurrentName := iterDirCurrentName.GetRecords(true).Select("id", "name", "url")
-			iterDirCurrentName.Release()
-
-			fmt.Printf("[DEBUG] Name search found %d records\n", len(rdDirCurrentName))
-			for _, rec := range rdDirCurrentName {
-				fmt.Printf("[DEBUG] Name match: ID=%d, Name=%s, URL=%s\n", rec["id"], rec["name"], rec["url"])
-			}
-
-			if len(rdDirCurrentName) > 0 {
-				currentDirId = rdDirCurrentName[0]["id"].(int)
+		iterDirCurrent.Release()
+		//var rdDirCurrent engine.Records
+		if iterDirCurrent != nil {
+			rdDirCurrent := iterDirCurrent.GetRecords(true).Select("id", "url")
+			if len(rdDirCurrent) > 0 {
+				currentDirId = rdDirCurrent[0]["id"].(int)
 			}
 		}
 	}
 
-	// 调试输出：配置路径和当前路径
-	fmt.Printf("Config path: %s\n", configPath)
-	fmt.Printf("Current path: %s\n", currentPath)
-	fmt.Printf("Current directory ID: %d\n", currentDirId)
-
+	// 渲染模板
 	c.HTML(http.StatusOK, "directory.html", gin.H{
 		"title":          w.translator.Translate("directory", lang),
 		"active":         "directory",
@@ -354,6 +323,7 @@ func (w *WebServer) DirectoryPageHandler(c *gin.Context) {
 		"currentPath":    currentPath,
 		"currentDirId":   currentDirId,
 		"directoryItems": directoryItems,
+		"readDirError":   readDirError,
 		"translator":     w.translator,
 		"languages":      w.translator.GetSupportedLanguages(),
 	})
@@ -369,6 +339,8 @@ func (w *WebServer) readDirectory(path string) ([]gin.H, error) {
 		return nil, err
 	}
 
+	// 获取根总目录路径
+
 	for _, file := range files {
 		itemType := "file"
 		if file.IsDir() {
@@ -376,26 +348,18 @@ func (w *WebServer) readDirectory(path string) ([]gin.H, error) {
 		}
 
 		itemPath := filepath.Join(path, file.Name())
-		var itemId int
-
+		itemId := -1
 		// 为所有项（目录和文件）查询对应的id
 		// 1. 先尝试使用完整路径匹配
+		// 直接使用原始路径查询，不进行转换
 		iterdirPath := db.Tables["dir"].Search(&map[string]any{
 			"url": itemPath,
 		}, util.Equal)
-		rddirPath := iterdirPath.GetRecords(true).Select("id")
-		iterdirPath.Release()
-		if len(rddirPath) > 0 {
-			itemId = rddirPath[0]["id"].(int)
-		} else {
-			// 2. 如果完整路径匹配失败，尝试使用文件名匹配
-			iterdirName := db.Tables["dir"].Search(&map[string]any{
-				"name": file.Name(),
-			}, util.Equal)
-			rddirName := iterdirName.GetRecords(true).Select("id")
-			iterdirName.Release()
-			if len(rddirName) > 0 {
-				itemId = rddirName[0]["id"].(int)
+		defer iterdirPath.Release()
+		if iterdirPath != nil {
+			rddirPath := iterdirPath.GetRecords(true).Select("id")
+			if len(rddirPath) > 0 {
+				itemId = rddirPath[0]["id"].(int)
 			}
 		}
 

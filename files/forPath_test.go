@@ -56,46 +56,63 @@ func Test_ForPath1(T *testing.T) {
 		fmt.Println(record["did"], record["secNo"], record["content"])
 	}
 
+	itemPath := "E:\\test\\abc.txt" //"\x00-\x01-E:\\test\\123.txt"  -- "\x00-\x01-E:\\test\\123.txt"
+	path := itemPath
+	iterdirPath := db.Tables["dir"].Search(&map[string]any{
+		"url": path,
+	}, util.Equal)
+	defer iterdirPath.Release()
+	if iterdirPath != nil {
+		if iterdirPath.First() {
+			key := iterdirPath.Key()
+			fmt.Println(string(key))
+		}
+		rddirPath := iterdirPath.GetRecords(true).Select("id")
+		if len(rddirPath) > 0 {
+			itemId := rddirPath[0]["id"].(int)
+			fmt.Println(itemId)
+		}
+	}
 }
 
 func Test_ForPath2(T *testing.T) {
 
 	//TraversePathAndReadFiles("E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论\\010-瑜伽师地论（第001卷～第020卷）")
 	/*
-		fmt.Println("----------dir--------------------")
-		iter1 := db.Tables["dir"].For()
-		defer iter1.Release()
-		for iter1.Next() {
-			fmt.Println(string(iter1.Key()), string(iter1.Value()))
+				fmt.Println("----------dir--------------------")
+				iter1 := db.Tables["dir"].For()
+				defer iter1.Release()
+				for iter1.Next() {
+					fmt.Println(string(iter1.Key()), string(iter1.Value
+			defer iter.Release()
+			rd := iter.GetRecords(true)
+			fmt.Println(len(rd))
+			fmt.Println("------------------------------")
+			for _, record := range rd {
+				fmt.Println(record)
+			}
+
 		}
+
+		// 发现问题，数据存在转换不对，导致错乱。
+		func Test_ForPath4(T *testing.T) {
+
+			a, b, c := TraversePathAndReadFiles("E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论")
+			fmt.Printf("a: %v\n", a)
+			fmt.Printf("b: %v\n", b)
+			fmt.Printf("c: %v\n", c)
+
+			/*
+				fmt.Println("----------dir--------------------")
+				iter := db.Tables["dir"].ForData()
+				defer iter.Release()
+				rd := iter.GetRecords(true)
+				fmt.Println(len(rd))
+				fmt.Println("------------------------------")
+				for _, record := range rd {
+					fmt.Println(record)
+				}
 	*/
-	fmt.Println("----------dir--------------------")
-	iter := db.Tables["dir"].ForData()
-	defer iter.Release()
-	rd := iter.GetRecords(true)
-	fmt.Println(len(rd))
-	fmt.Println("------------------------------")
-	for _, record := range rd {
-		fmt.Println(record)
-	}
-
-}
-
-// 发现问题，数据存在转换不对，导致错乱。
-func Test_ForPath4(T *testing.T) {
-
-	TraversePathAndReadFiles("E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论")
-
-	fmt.Println("----------dir--------------------")
-	iter := db.Tables["dir"].ForData()
-	defer iter.Release()
-	rd := iter.GetRecords(true)
-	fmt.Println(len(rd))
-	fmt.Println("------------------------------")
-	for _, record := range rd {
-		fmt.Println(record)
-	}
-
 }
 func Test_ForPath5(T *testing.T) {
 	iter1 := db.Tables["senc"].Search(&map[string]any{
@@ -191,13 +208,22 @@ func Test_ForPath7(T *testing.T) {
 }
 
 func Test_ForPath8(T *testing.T) {
-	//通过url匹配文章id为1489的id
-	iterdir := db.Tables["dir"].Search(&map[string]any{
-		"url": "E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论\\108-六祖坛经\\02-般若品第二.txt",
+	iterdirid := db.Tables["dir"].Search(&map[string]any{
+		"id": 8882,
 	}, util.Equal)
-	defer iterdir.Release()
-	rddir := iterdir.GetRecords(true).Select("id")
+	defer iterdirid.Release()
+	rddir := iterdirid.GetRecords(true).Select("id")
 	id := rddir[0]["id"].(int)
 	fmt.Println(id)
+	//通过url匹配文章id为8882的id
+	/*
+		iterdir := db.Tables["dir"].Search(&map[string]any{
+			"url": `E:\工具\代理\ChromeGo\chrome-user-data\Default\Extensions\bhghoamapcdpbohphigoooaddinpkbai\8.0.1_0\_locales\id`,
+		}, util.Equal)
+		defer iterdir.Release()
+		rddir = iterdir.GetRecords(true).Select("id")
+		id = rddir[0]["id"].(int)
+		fmt.Println(id)
+	*/
 
 }

@@ -33,5 +33,8 @@ func SetupRoutes(r *gin.Engine) {
 		
 		// 文章内容路由
 		api.GET("/article/:id", ArticleContentHandler)
+		
+		// 保存根路径路由
+		api.POST("/save-root-path", SaveRootPathHandler)
 	}
 }

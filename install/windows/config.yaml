@@ -2,6 +2,6 @@ web:
     port: 9981
     password: "123456"
     lang: zh
-    filepath: 
+    filepath: D:\MyGo\src\ReSearch\install\windows
 db:
     filepath: ./rsdb

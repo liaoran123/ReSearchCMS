@@ -18,12 +18,14 @@ import (
 )
 
 func main() {
-	// 获取可执行文件所在目录的绝对路径
-	execPath, err := os.Executable()
+	// 获取当前工作目录作为baseDir，这样在开发环境中也能正常工作
+	baseDir, err := os.Getwd()
 	if err != nil {
-		log.Fatalf("Error getting executable path: %v", err)
+		log.Fatalf("Error getting working directory: %v", err)
 	}
-	baseDir := filepath.Dir(execPath)
+
+	// 输出baseDir用于调试
+	fmt.Printf("Base directory: %s\n", baseDir)
 
 	// 初始化多语言支持
 	translator := i18n.NewTranslator()
