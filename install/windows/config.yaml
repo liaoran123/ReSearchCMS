@@ -2,6 +2,6 @@ web:
     port: 9981
     password: "123456"
     lang: zh
-    filepath: D:\MyGo\src\ReSearch\install\windows
+    filepath: E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论
 db:
     filepath: ./rsdb

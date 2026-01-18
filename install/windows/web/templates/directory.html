@@ -55,7 +55,12 @@
                                     </nav>
                                 </div>
                                 
-                                {{if .directoryItems}}
+                                {{if .readDirError}}
+                                <div class="alert alert-danger" role="alert">
+                                    <i class="bi bi-exclamation-circle me-2"></i>
+                                    读取目录失败：{{.readDirError}}
+                                </div>
+                                {{else if .directoryItems}}
                                 <ul class="list-group list-group-flush" id="directory-list">
                                     {{range .directoryItems}}
                                     <li class="list-group-item">

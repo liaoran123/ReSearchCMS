@@ -27,8 +27,8 @@ func init() {
 
 var currentTime string
 
-const spstr = `。!?？！；;\n` //支持中文为主的分隔符
-//const spstr = `。.!?？！；;\n`
+const spstr = "。!?？！；;" //支持中文为主的分隔符
+//const spstr = `。.!?？！；;\n` //这里\n是两个字符。双引号才是一个字符，换行符。
 
 // TraversePathAndReadFiles 根据给定路径遍历读取所有文本文件内容
 func TraversePathAndReadFiles(rootPath string) (map[string]int, map[string]int, error) {
@@ -172,7 +172,7 @@ func addSentence(did, secNo int, content string) error {
 }
 
 func AddArticle(did int, content string) error {
-	//将原来的换行符替换为当前时间戳换行符标识
+	//将原来的换行符替换为当前时间戳换行符标识 <setting>\n[setting]\r\nopenid=104\r\n
 	content = strings.ReplaceAll(content, "\n", currentTime+"\n")
 	//将所有分隔符附加上换行符
 	for _, sep := range spstr {

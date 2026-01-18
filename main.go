@@ -53,7 +53,6 @@ func main() {
 
 	// 设置 API 路由
 	api.SetupRoutes(r)
-
 	// 设置 Web 路由
 	webServer := web.NewWebServer(translator, baseDir)
 	webServer.SetupRoutes(r)

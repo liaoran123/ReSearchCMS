@@ -307,7 +307,7 @@ func (w *WebServer) DirectoryPageHandler(c *gin.Context) {
 		iterDirCurrent.Release()
 		//var rdDirCurrent engine.Records
 		if iterDirCurrent != nil {
-			rdDirCurrent := iterDirCurrent.GetRecords(true).Select("id", "url")
+			rdDirCurrent := iterDirCurrent.GetRecords(true, 1).Select("id", "url")
 			if len(rdDirCurrent) > 0 {
 				currentDirId = rdDirCurrent[0]["id"].(int)
 			}
@@ -346,7 +346,6 @@ func (w *WebServer) readDirectory(path string) ([]gin.H, error) {
 		if file.IsDir() {
 			itemType = "directory"
 		}
-
 		itemPath := filepath.Join(path, file.Name())
 		itemId := -1
 		// 为所有项（目录和文件）查询对应的id
@@ -357,7 +356,7 @@ func (w *WebServer) readDirectory(path string) ([]gin.H, error) {
 		}, util.Equal)
 		defer iterdirPath.Release()
 		if iterdirPath != nil {
-			rddirPath := iterdirPath.GetRecords(true).Select("id")
+			rddirPath := iterdirPath.GetRecords(true, 1).Select("id")
 			if len(rddirPath) > 0 {
 				itemId = rddirPath[0]["id"].(int)
 			}

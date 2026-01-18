@@ -79,6 +79,17 @@
                         <p class="card-text">
                             考据级搜索是指本搜索引擎专为学术研究、文献考据等场景设计，提供极高精度的搜索功能。与传统搜索引擎不同，本系统不会对搜索词进行分词处理，而是将整个搜索词（包括标点符号）作为完整的匹配条件，确保搜索结果的准确性和完整性。
                         </p>
+                        <h5 class="card-title mt-4">搜索粒度</h5>
+                        <p class="card-text">
+                            传统搜索引擎通常以一篇文章或一个文件为搜索粒度，在匹配时会返回整个文档作为结果。而本考据级搜索引擎采用更精细的<strong>句子级搜索粒度</strong>：
+                        </p>
+                        <ul class="list-group list-group-flush mb-4">
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 传统搜索引擎：以整篇文章为单位返回搜索结果</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 考据级搜索引擎：以句子为单位返回搜索结果</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 每个搜索结果都精确指向匹配内容所在的句子</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 支持查看句子的上下文，便于理解匹配内容的完整含义</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 特别适合需要精确定位特定语句、引用或证据的学术研究场景</li>
+                        </ul>
                         <h5 class="card-title mt-4">{{.translator.Translate "100_precise_search" .lang}}</h5>
                         <p class="card-text">
                             1. 只要文件已被创建索引，任何文字组合（包括标点符号）都能被100%精准搜索到<br>
@@ -170,7 +181,9 @@
                         <h5 class="card-title">{{.translator.Translate "office_files" .lang}}</h5>
                         <ul class="list-group list-group-flush mb-4">
                             <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .docx (Word文档)</li>
+                            <li class="list-group-item"><i class="bi bi-x-circle text-danger me-2"></i> .doc (旧版Word，不支持，请转换为DOCX格式)</li>
                             <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .xlsx (Excel表格)</li>
+                            <li class="list-group-item"><i class="bi bi-x-circle text-danger me-2"></i> .xls (旧版Excel，不支持，请转换为XLSX格式)</li>
                             <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .pptx (PowerPoint演示文稿)</li>
                             <li class="list-group-item"><i class="bi bi-x-circle text-danger me-2"></i> .ppt (旧版PowerPoint，不支持，请转换为PPTX格式)</li>
                         </ul>
@@ -183,7 +196,11 @@
                         
                         <h5 class="card-title">{{.translator.Translate "text_files" .lang}}</h5>
                         <ul class="list-group list-group-flush">
-                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> .txt</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 普通文本文件: .txt</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 配置文件: .json, .yaml, .yml, .toml, .ini, .conf, .cfg, .xml</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 代码文件: .go, .py, .java, .js, .ts, .jsx, .tsx, .css, .scss, .md, .rb, .php, .cpp, .c, .h, .hpp, .cs, .swift, .kt, .rs</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 日志和脚本文件: .log, .sql, .sh, .bash, .cmd, .bat, .ps1</li>
+                            <li class="list-group-item"><i class="bi bi-check-circle text-success me-2"></i> 其他常见文本文件: .rst, .text, .markdown, .adoc, .asciidoc, .tex, .latex, .bib, .properties, .resx, .strings, .po, .mo</li>
                         </ul>
                     </div>
                 </div>

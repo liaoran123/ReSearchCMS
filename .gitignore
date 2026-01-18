@@ -29,6 +29,6 @@ Thumbs.db
 *.sqlite
 
 files/rsdb
-rsdb
+rsdb*/
 build
 bootstrap5.3

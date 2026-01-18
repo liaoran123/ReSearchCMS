@@ -46,14 +46,14 @@ func Test_ForPath1(T *testing.T) {
 	for _, record := range rd {
 		fmt.Println(record)
 	}
-	fmt.Println("-------123-----------------------")
+	fmt.Println("-------openid-----------------------")
 	iter4 := db.Tables["senc"].Search(&map[string]any{
-		"content": "123",
+		"content": "open",
 	})
 	defer iter4.Release()
 	rd1 := iter4.GetRecords(true, 21)
 	for _, record := range rd1 {
-		fmt.Println(record["did"], record["secNo"], record["content"])
+		fmt.Println(record)
 	}
 
 	itemPath := "E:\\test\\abc.txt" //"\x00-\x01-E:\\test\\123.txt"  -- "\x00-\x01-E:\\test\\123.txt"
