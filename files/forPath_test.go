@@ -78,41 +78,15 @@ func Test_ForPath1(T *testing.T) {
 func Test_ForPath2(T *testing.T) {
 
 	//TraversePathAndReadFiles("E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论\\010-瑜伽师地论（第001卷～第020卷）")
-	/*
-				fmt.Println("----------dir--------------------")
-				iter1 := db.Tables["dir"].For()
-				defer iter1.Release()
-				for iter1.Next() {
-					fmt.Println(string(iter1.Key()), string(iter1.Value
-			defer iter.Release()
-			rd := iter.GetRecords(true)
-			fmt.Println(len(rd))
-			fmt.Println("------------------------------")
-			for _, record := range rd {
-				fmt.Println(record)
-			}
-
-		}
-
-		// 发现问题，数据存在转换不对，导致错乱。
-		func Test_ForPath4(T *testing.T) {
-
-			a, b, c := TraversePathAndReadFiles("E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论")
-			fmt.Printf("a: %v\n", a)
-			fmt.Printf("b: %v\n", b)
-			fmt.Printf("c: %v\n", c)
-
-			/*
-				fmt.Println("----------dir--------------------")
-				iter := db.Tables["dir"].ForData()
-				defer iter.Release()
-				rd := iter.GetRecords(true)
-				fmt.Println(len(rd))
-				fmt.Println("------------------------------")
-				for _, record := range rd {
-					fmt.Println(record)
-				}
-	*/
+	fmt.Println("----------dir--------------------")
+	iter := db.Tables["dir"].ForData()
+	defer iter.Release()
+	rd := iter.GetRecords(true)
+	fmt.Println(len(rd))
+	fmt.Println("------------------------------")
+	for _, record := range rd {
+		fmt.Println(record)
+	}
 }
 func Test_ForPath5(T *testing.T) {
 	iter1 := db.Tables["senc"].Search(&map[string]any{

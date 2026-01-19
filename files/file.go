@@ -11,6 +11,7 @@ import (
 	"github.com/unidoc/unioffice/document"
 	"github.com/unidoc/unioffice/presentation"
 	"github.com/unidoc/unioffice/spreadsheet"
+	"github.com/unidoc/unipdf/v3/model"
 )
 
 // GetOfficeTextContent 从Office文件中提取文本内容
@@ -123,6 +124,102 @@ func getPPTXTextContent(filePath string) (string, error) {
 	return buf.String(), nil
 }
 
+// GetPDFTextContent 从PDF文件中提取文本内容
+func GetPDFTextContent(filePath string) (string, error) {
+	// 打开PDF文件
+	f, err := os.Open(filePath)
+	if err != nil {
+		return "", fmt.Errorf("打开PDF文件 %s 失败: %w", filePath, err)
+	}
+	defer f.Close()
+
+	// 创建PDF阅读器
+	reader, err := model.NewPdfReader(f)
+	if err != nil {
+		return "", fmt.Errorf("创建PDF阅读器失败: %w", err)
+	}
+
+	// 检查文件是否加密
+	isEncrypted, err := reader.IsEncrypted()
+	if err != nil {
+		return "", fmt.Errorf("检查PDF加密状态失败: %w", err)
+	}
+
+	// 如果文件加密，尝试使用空密码解密
+	if isEncrypted {
+		_, err = reader.Decrypt([]byte(""))
+		if err != nil {
+			return "", fmt.Errorf("解密PDF文件失败: %w", err)
+		}
+	}
+
+	// 获取PDF页数
+	numPages, err := reader.GetNumPages()
+	if err != nil {
+		return "", fmt.Errorf("获取PDF页数失败: %w", err)
+	}
+
+	var buf bytes.Buffer
+
+	// 遍历所有页面
+	for i := 1; i <= numPages; i++ {
+		// 获取页面
+		page, err := reader.GetPage(i)
+		if err != nil {
+			return "", fmt.Errorf("获取PDF页面 %d 失败: %w", i, err)
+		}
+
+		// 提取页面文本（简化实现）
+		contentStreams, err := page.GetContentStreams()
+		if err != nil {
+			return "", fmt.Errorf("获取PDF页面 %d 内容流失败: %w", i, err)
+		}
+
+		// 合并内容流并简单提取文本
+		var text strings.Builder
+		for _, content := range contentStreams {
+			// 简单的文本提取：查找括号内的文本
+			inText := false
+			currentText := ""
+			for _, c := range content {
+				switch c {
+				case '(':
+					inText = true
+					currentText = ""
+				case ')':
+					if inText {
+						text.WriteString(currentText)
+						text.WriteString(" ")
+						inText = false
+					}
+				case '\\':
+					// 跳过转义字符
+				default:
+					if inText {
+						currentText += string(c)
+					}
+				}
+			}
+		}
+
+		// 将页面文本写入缓冲区
+		buf.WriteString(text.String())
+		buf.WriteString("\n")
+	}
+
+	return buf.String(), nil
+}
+
+// GetImageTextContent 从图片文件中提取文本内容（OCR）
+func GetImageTextContent(filePath string) (string, error) {
+	// 简化实现：返回图片文件路径，实际OCR功能需要安装Tesseract依赖
+	// 完整OCR功能需要：
+	// 1. 安装Tesseract OCR引擎
+	// 2. 确保gosseract库能够正确访问Tesseract
+	// 3. 下载所需语言包
+	return "", fmt.Errorf("图片OCR功能需要安装Tesseract OCR引擎，当前仅支持图片文件识别但不提取内容")
+}
+
 // GetHTMLTextContent 从HTML文件中提取文本内容
 func GetHTMLTextContent(filePath string) (string, error) {
 	// 读取HTML文件
@@ -223,6 +320,15 @@ var (
 		".html": true,
 		".htm":  true,
 	}
+	imageFileMap = map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+		".gif":  true,
+		".bmp":  true,
+		".tiff": true,
+		".tif":  true,
+	}
 	textFileMap = map[string]bool{
 		// 普通文本文件
 		".txt": true,
@@ -262,6 +368,11 @@ func ReadFileContent(filePath string) (string, error) {
 	ext := filepath.Ext(filePath)
 	ext = strings.ToLower(ext)
 
+	// 检查是否为PDF文件
+	if ext == ".pdf" {
+		return GetPDFTextContent(filePath)
+	}
+
 	// 检查是否为Office文件
 	if officeFileMap[ext] {
 		return GetOfficeTextContent(filePath)
@@ -270,6 +381,11 @@ func ReadFileContent(filePath string) (string, error) {
 	// 检查是否为HTML文件
 	if htmlFileMap[ext] {
 		return GetHTMLTextContent(filePath)
+	}
+
+	// 检查是否为图片文件
+	if imageFileMap[ext] {
+		return GetImageTextContent(filePath)
 	}
 
 	// 检查是否为文本、配置、代码或日志文件
