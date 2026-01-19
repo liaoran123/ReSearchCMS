@@ -17,13 +17,6 @@ func Test_ForPath1(T *testing.T) {
 	TraversePathAndReadFiles("E:\\test")
 
 	fmt.Println("----------dir--------------------")
-	iter1 := db.Tables["dir"].For()
-	defer iter1.Release()
-	for iter1.Next() {
-		fmt.Println(string(iter1.Key()), string(iter1.Value()))
-	}
-
-	fmt.Println("----------dir--------------------")
 	iter := db.Tables["dir"].ForData()
 	defer iter.Release()
 	rd := iter.GetRecords(true)
@@ -33,46 +26,6 @@ func Test_ForPath1(T *testing.T) {
 		fmt.Println(record)
 	}
 
-	fmt.Println("------------------------------")
-	iter2 := db.Tables["senc"].For()
-	defer iter2.Release()
-	for iter2.Next() {
-		fmt.Println(string(iter2.Key()), string(iter2.Value()))
-	}
-	fmt.Println("------------------------------")
-	iter3 := db.Tables["senc"].ForData()
-	defer iter3.Release()
-	rd = iter3.GetRecords(true)
-	for _, record := range rd {
-		fmt.Println(record)
-	}
-	fmt.Println("-------openid-----------------------")
-	iter4 := db.Tables["senc"].Search(&map[string]any{
-		"content": "open",
-	})
-	defer iter4.Release()
-	rd1 := iter4.GetRecords(true, 21)
-	for _, record := range rd1 {
-		fmt.Println(record)
-	}
-
-	itemPath := "E:\\test\\abc.txt" //"\x00-\x01-E:\\test\\123.txt"  -- "\x00-\x01-E:\\test\\123.txt"
-	path := itemPath
-	iterdirPath := db.Tables["dir"].Search(&map[string]any{
-		"url": path,
-	}, util.Equal)
-	defer iterdirPath.Release()
-	if iterdirPath != nil {
-		if iterdirPath.First() {
-			key := iterdirPath.Key()
-			fmt.Println(string(key))
-		}
-		rddirPath := iterdirPath.GetRecords(true).Select("id")
-		if len(rddirPath) > 0 {
-			itemId := rddirPath[0]["id"].(int)
-			fmt.Println(itemId)
-		}
-	}
 }
 
 func Test_ForPath2(T *testing.T) {
@@ -200,4 +153,67 @@ func Test_ForPath8(T *testing.T) {
 		fmt.Println(id)
 	*/
 
+}
+
+func Test_ForPath9(T *testing.T) {
+
+	TraversePathAndReadFiles("E:\\test")
+
+	fmt.Println("----------dir--------------------")
+	iter1 := db.Tables["dir"].For()
+	defer iter1.Release()
+	for iter1.Next() {
+		fmt.Println(string(iter1.Key()), string(iter1.Value()))
+	}
+
+	fmt.Println("----------dir--------------------")
+	iter := db.Tables["dir"].ForData()
+	defer iter.Release()
+	rd := iter.GetRecords(true)
+	fmt.Println(len(rd))
+	fmt.Println("------------------------------")
+	for _, record := range rd {
+		fmt.Println(record)
+	}
+
+	fmt.Println("------------------------------")
+	iter2 := db.Tables["senc"].For()
+	defer iter2.Release()
+	for iter2.Next() {
+		fmt.Println(string(iter2.Key()), string(iter2.Value()))
+	}
+	fmt.Println("------------------------------")
+	iter3 := db.Tables["senc"].ForData()
+	defer iter3.Release()
+	rd = iter3.GetRecords(true)
+	for _, record := range rd {
+		fmt.Println(record)
+	}
+	fmt.Println("-------openid-----------------------")
+	iter4 := db.Tables["senc"].Search(&map[string]any{
+		"content": "open",
+	})
+	defer iter4.Release()
+	rd1 := iter4.GetRecords(true, 21)
+	for _, record := range rd1 {
+		fmt.Println(record)
+	}
+
+	itemPath := "E:\\test\\abc.txt" //"\x00-\x01-E:\\test\\123.txt"  -- "\x00-\x01-E:\\test\\123.txt"
+	path := itemPath
+	iterdirPath := db.Tables["dir"].Search(&map[string]any{
+		"url": path,
+	}, util.Equal)
+	defer iterdirPath.Release()
+	if iterdirPath != nil {
+		if iterdirPath.First() {
+			key := iterdirPath.Key()
+			fmt.Println(string(key))
+		}
+		rddirPath := iterdirPath.GetRecords(true).Select("id")
+		if len(rddirPath) > 0 {
+			itemId := rddirPath[0]["id"].(int)
+			fmt.Println(itemId)
+		}
+	}
 }
