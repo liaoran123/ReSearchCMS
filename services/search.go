@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/liaoran123/sfsDb/engine"
+	match "github.com/liaoran123/sfsDb/mach"
 	"github.com/liaoran123/sfsDb/util"
 )
 
@@ -23,7 +24,7 @@ type SearchResult struct {
 func Search(query string, did int, start, limit int) ([]SearchResult, int, error) {
 	// 开始计时
 	totalStartTime := time.Now()
-	
+
 	// 1. 搜索词处理
 	wordProcessStart := time.Now()
 	//将query按空格分隔
@@ -37,7 +38,7 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 		words = words[:3]
 	}
 	wordProcessTime := time.Since(wordProcessStart)
-	
+
 	// 调试输出
 	fmt.Printf("搜索词处理时间: %v ms\n", wordProcessTime.Milliseconds())
 	/*
@@ -53,7 +54,7 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 		})
 		defer iters[i].Release()
 		if i > 0 {
-			mach := engine.NewAND([]string{"did", "secNo"}, iters[i].Map())
+			mach := match.NewAND([]string{"did", "secNo"}, iters[i].Map())
 			iters[0].SetMatch(mach)
 		}
 	}
@@ -79,19 +80,19 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 				"url": dirURL,
 			}, util.Like)
 			defer dirUrlIter.Release()
-			mach := engine.NewAND([]string{"did"}, dirUrlIter.Map()) //dir的did等于当前目录的did
+			mach := match.NewAND([]string{"did"}, dirUrlIter.Map()) //dir的did等于当前目录的did
 			iters[0].SetMatch(mach)
 		}
 	}
 	searchExecTime := time.Since(searchExecStart)
-	
+
 	// 调试输出
 	fmt.Printf("搜索执行时间: %v ms\n", searchExecTime.Milliseconds())
-	
+
 	var results []SearchResult
 	// 初始化结果切片
 	results = make([]SearchResult, 0)
-	
+
 	// 3. 获取匹配记录
 	recordsStart := time.Now()
 	/*
@@ -104,7 +105,7 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 	records := iters[0].GetRecords(true, start, limit)
 	totalCount := len(records)
 	recordsTime := time.Since(recordsStart)
-	
+
 	// 调试输出
 	fmt.Printf("记录获取时间: %v ms, 记录数量: %v\n", recordsTime.Milliseconds(), totalCount)
 
@@ -134,13 +135,13 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 		currentIndex++
 	}
 	resultProcessTime := time.Since(resultProcessStart)
-	
+
 	// 调试输出
 	fmt.Printf("结果处理时间: %v ms\n", resultProcessTime.Milliseconds())
-	
+
 	// 总搜索时间
 	totalSearchTime := time.Since(totalStartTime)
 	fmt.Printf("总搜索时间: %v ms\n", totalSearchTime.Milliseconds())
-	
+
 	return results, totalCount, nil
 }
