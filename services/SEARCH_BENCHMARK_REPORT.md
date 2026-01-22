@@ -164,5 +164,5 @@ go test ./services -bench=BenchmarkSearch -memprofile=mem.prof
 
 ---
 
-**报告生成时间**: {{.Date}}
+**报告生成时间**: 2026-01-22
 **测试人员**: AI Assistant

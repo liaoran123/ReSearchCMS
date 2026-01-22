@@ -334,6 +334,14 @@ go test ./services -bench=BenchmarkSearch -memprofile=mem.prof
 - **报告内容**：包括系统能力评估、访问规模估算、性能瓶颈分析和优化建议
 - **适用场景**：为项目部署、扩容和优化提供参考依据
 
+### 综合性能评估
+
+我们还提供了更全面的综合性能评估报告，结合了基准测试结果和性能规模分析：
+
+- **综合报告**：[COMPREHENSIVE_PERFORMANCE_REPORT.md](COMPREHENSIVE_PERFORMANCE_REPORT.md)
+- **报告内容**：包括测试环境、基准测试结果、访问规模评估、性能瓶颈分析和详细优化建议
+- **适用场景**：为项目性能优化、部署规划和扩容决策提供全面参考
+
 ## 🔮 未来规划
 
 ### 近期规划
