@@ -30,7 +30,7 @@ func Test_ForPath1(T *testing.T) {
 
 func Test_ForPath2(T *testing.T) {
 
-	//TraversePathAndReadFiles("E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论\\010-瑜伽师地论（第001卷～第020卷）")
+	TraversePathAndReadFiles("E:\\四库全书20231110\\11-乾隆大藏经\\3-论\\1-大乘论\\010-瑜伽师地论（第001卷～第020卷）")
 	fmt.Println("----------dir--------------------")
 	iter := db.Tables["dir"].ForData()
 	defer iter.Release()

@@ -291,7 +291,42 @@ GET /api/directory
 - **并发处理能力**：支持高并发请求
 - **内存占用**：轻量级设计，内存占用低
 
-## 🔮 未来规划
+## � 基准测试
+
+### 概述
+
+ReSearch提供了详细的基准测试用例，用于评估搜索功能在不同场景下的性能表现。基准测试覆盖了单查询搜索、带目录限制的搜索、不同分页参数的搜索、并发搜索以及不同查询词长度的搜索性能。
+
+### 基准测试文件
+
+- **测试代码**：[services/search_test.go](services/search_test.go)
+- **测试报告**：[services/SEARCH_BENCHMARK_REPORT.md](services/SEARCH_BENCHMARK_REPORT.md)
+
+### 运行基准测试
+
+```bash
+# 运行所有基准测试
+go test ./services -bench=BenchmarkSearch -benchmem -v
+
+# 运行单个基准测试
+go test ./services -bench=BenchmarkSearch$ -benchmem -v
+
+# 生成CPU分析文件
+go test ./services -bench=BenchmarkSearch -cpuprofile=cpu.prof
+
+# 生成内存分析文件
+go test ./services -bench=BenchmarkSearch -memprofile=mem.prof
+```
+
+### 测试场景
+
+1. **单查询搜索性能**：测试不同查询词的搜索响应时间
+2. **带目录限制的搜索性能**：测试不同目录ID下的搜索性能
+3. **不同分页参数的搜索性能**：测试不同start和limit参数的搜索性能
+4. **并发搜索性能**：测试1、2、4、8、16个并发请求下的搜索性能
+5. **不同查询词长度的搜索性能**：测试1-8个字符长度的查询词搜索性能
+
+## �🔮 未来规划
 
 ### 近期规划
 - [ ] 支持PDF文档解析

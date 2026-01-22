@@ -32,6 +32,12 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
+	/*
+		iter := Tables["senc"].ForData()
+		defer iter.Release()
+		count := iter.Count()
+		fmt.Println(count)=5766832
+	*/
 }
 
 // CreateTable_mulu 创建目录表
