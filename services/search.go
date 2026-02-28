@@ -9,6 +9,7 @@ import (
 
 	"github.com/liaoran123/sfsDb/engine"
 	"github.com/liaoran123/sfsDb/match"
+	"github.com/liaoran123/sfsDb/record"
 	"github.com/liaoran123/sfsDb/util"
 )
 
@@ -49,12 +50,14 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 	searchExecStart := time.Now()
 	iters := make([]*engine.TableIter, len(words))
 	for i, word := range words {
-		iters[i] = db.Tables["senc"].Search(&map[string]any{
+		iters[i], _ = db.Tables["senc"].Search(&map[string]any{
 			"content": word,
 		})
-		defer iters[i].Release()
+		defer engine.GlobalTableIterPool.Put(iters[i])
 		if i > 0 {
-			mach := match.NewAND([]string{"did", "secNo"}, iters[i].Map())
+			data := iters[i].Map()
+			defer engine.PutMap(data)
+			mach := match.NewAND([]string{"did", "secNo"}, data)
 			iters[0].SetMatch(mach)
 		}
 	}
@@ -69,17 +72,17 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 
 		*/
 		//select url from dir where did = [did]
-		dirIdIter := db.Tables["dir"].Search(&map[string]any{"id": did}, util.Equal)
-		defer dirIdIter.Release()
+		dirIdIter, _ := db.Tables["dir"].Search(&map[string]any{"id": did}, util.Equal)
+		defer engine.GlobalTableIterPool.Put(dirIdIter)
 		dirRecords := dirIdIter.GetRecords(true, 1)
 		var dirURL string
 		if len(dirRecords) > 0 {
 			dirURL = dirRecords[0]["url"].(string)
 			//select id from dir where url like dirURL
-			dirUrlIter := db.Tables["dir"].Search(&map[string]any{
+			dirUrlIter, _ := db.Tables["dir"].Search(&map[string]any{
 				"url": dirURL,
 			}, util.Like)
-			defer dirUrlIter.Release()
+			defer engine.GlobalTableIterPool.Put(dirUrlIter)
 			mach := match.NewAND([]string{"did"}, dirUrlIter.Map()) //dir的did等于当前目录的did
 			iters[0].SetMatch(mach)
 		}
@@ -103,6 +106,7 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 
 	*/
 	records := iters[0].GetRecords(true, start, limit)
+	defer record.PutRecords(records)
 	totalCount := len(records)
 	recordsTime := time.Since(recordsStart)
 
@@ -122,8 +126,8 @@ func Search(query string, did int, start, limit int) ([]SearchResult, int, error
 		}
 		// 尝试获取文件路径
 		if recordDid, ok := record["did"].(int); ok {
-			dirIter := db.Tables["dir"].Search(&map[string]any{"id": recordDid}, util.Equal)
-			defer dirIter.Release()
+			dirIter, _ := db.Tables["dir"].Search(&map[string]any{"id": recordDid}, util.Equal)
+			defer engine.GlobalTableIterPool.Put(dirIter)
 			dirRecords := dirIter.GetRecords(true, 1)
 			if len(dirRecords) > 0 {
 				if path, ok := dirRecords[0]["url"].(string); ok {

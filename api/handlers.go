@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/liaoran123/sfsDb/engine"
+	"github.com/liaoran123/sfsDb/record"
 	"github.com/liaoran123/sfsDb/util"
 	"gopkg.in/yaml.v3"
 )
@@ -355,10 +357,10 @@ func GetSuggestionsHandler(c *gin.Context) {
 // generateSuggestions 生成搜索建议
 func generateSuggestions(query string) []string {
 	// 初始化返回的建议列表
-	iter1 := db.Tables["senc"].Search(&map[string]any{
+	iter1, _ := db.Tables["senc"].Search(&map[string]any{
 		"content": query,
 	})
-	defer iter1.Release()
+	defer engine.GlobalTableIterPool.Put(iter1)
 	rlen := 11
 	pk := db.Tables["senc"].GetPrimaryKey()
 	//Prefix := pk.Prefix(0)
@@ -490,8 +492,8 @@ func getContentByDidAndSecNo(did, secNo int) (string, error) {
 	}
 
 	// 查询数据
-	iter := sencTable.Search(&query, util.Equal)
-	defer iter.Release()
+	iter, _ := sencTable.Search(&query, util.Equal)
+	defer engine.GlobalTableIterPool.Put(iter)
 
 	// 获取记录
 	records := iter.GetRecords(true, 1)
@@ -555,10 +557,10 @@ func ArticleContentHandler(c *gin.Context) {
 	}
 
 	// 从数据库获取文章标题和URL
-	iterdir := db.Tables["dir"].Search(&map[string]any{
+	iterdir, _ := db.Tables["dir"].Search(&map[string]any{
 		"id": id,
 	}, util.Equal)
-	defer iterdir.Release()
+	defer engine.GlobalTableIterPool.Put(iterdir)
 	rddir := iterdir.GetRecords(true).Select("name", "url")
 	if len(rddir) == 0 {
 		c.JSON(http.StatusNotFound, gin.H{
@@ -571,11 +573,11 @@ func ArticleContentHandler(c *gin.Context) {
 	url := rddir[0]["url"].(string)
 
 	// 从数据库获取文章内容
-	itersenc := db.Tables["senc"].Search(&map[string]any{
+	itersenc, _ := db.Tables["senc"].Search(&map[string]any{
 		"did":   id,
 		"secNo": nil,
 	})
-	defer itersenc.Release()
+	defer engine.GlobalTableIterPool.Put(itersenc)
 	rdsenc := itersenc.GetRecords(true).Select("content")
 
 	var text strings.Builder
@@ -604,9 +606,9 @@ func readDirectory(path string) ([]map[string]any, error) {
 
 	// 查询所有目录记录，用于匹配文件路径
 	iterdir := db.Tables["dir"].ForData()
+	defer engine.GlobalTableIterPool.Put(iterdir)
 	allDirs := iterdir.GetRecords(true).Select("id", "url")
-	iterdir.Release()
-
+	defer record.PutRecords(allDirs)
 	for _, file := range files {
 		itemType := "file"
 		if file.IsDir() {

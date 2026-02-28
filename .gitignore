@@ -27,7 +27,7 @@ Thumbs.db
 # Database files
 *.db
 *.sqlite
-
+/kvdb/*
 files/rsdb
 rsdb*/
 build

@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/liaoran123/sfsDb/util"
@@ -291,23 +290,20 @@ func (w *WebServer) DirectoryPageHandler(c *gin.Context) {
 	// 只有当currentPath不为空时才查询目录ID
 	if currentPath != "" {
 		// 调试输出：当前路径
-		fmt.Printf("[DEBUG] Raw current path: %s\n", currentPath)
 
 		// 处理路径格式，确保与数据库中的格式匹配
-		processedPath := currentPath
+		//processedPath := currentPath
 		// 确保路径使用正确的分隔符（根据数据库存储格式调整）
-		processedPath = strings.ReplaceAll(processedPath, "\\", "/")
-
-		fmt.Printf("[DEBUG] Processed path: %s\n", processedPath)
 
 		// 1. 先尝试使用完整路径匹配当前目录
-		iterDirCurrent := db.Tables["dir"].Search(&map[string]any{
-			"url": processedPath,
+		iterDirCurrent, _ := db.Tables["dir"].Search(&map[string]any{
+			"url": currentPath,
 		}, util.Equal)
-		iterDirCurrent.Release()
+		defer iterDirCurrent.Release() //engine.GlobalTableIterPool.Put(iterDirCurrent)
 		//var rdDirCurrent engine.Records
 		if iterDirCurrent != nil {
 			rdDirCurrent := iterDirCurrent.GetRecords(true, 1).Select("id", "url")
+			defer rdDirCurrent.Release()
 			if len(rdDirCurrent) > 0 {
 				currentDirId = rdDirCurrent[0]["id"].(int)
 			}
@@ -351,12 +347,13 @@ func (w *WebServer) readDirectory(path string) ([]gin.H, error) {
 		// 为所有项（目录和文件）查询对应的id
 		// 1. 先尝试使用完整路径匹配
 		// 直接使用原始路径查询，不进行转换
-		iterdirPath := db.Tables["dir"].Search(&map[string]any{
+		iterdirPath, _ := db.Tables["dir"].Search(&map[string]any{
 			"url": itemPath,
 		}, util.Equal)
-		defer iterdirPath.Release()
+		defer iterdirPath.Release() //engine.GlobalTableIterPool.Put(iterdirPath)
 		if iterdirPath != nil {
 			rddirPath := iterdirPath.GetRecords(true, 1).Select("id")
+			defer rddirPath.Release()
 			if len(rddirPath) > 0 {
 				itemId = rddirPath[0]["id"].(int)
 			}

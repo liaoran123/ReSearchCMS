@@ -1,0 +1,21 @@
+package db
+
+import (
+	"github.com/liaoran123/sfsDb/management"
+	"github.com/liaoran123/sfsDb/web"
+)
+
+// StartDbManager 启动数据库管理器和Web服务器
+func StartDbManager() {
+	// 创建管理器
+	manager := management.NewManager(Store)
+
+	// 核心配置（只需这两行）
+	configMgr := manager.ConfigManager()
+	configMgr.SetConfig("web_enable", "true")
+	configMgr.SetConfig("web_port", ":8083")
+
+	// 启动Web服务器
+	server := web.NewServer(":8083", manager)
+	server.Start()
+}

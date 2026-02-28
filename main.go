@@ -96,7 +96,7 @@ func main() {
 			log.Printf("Error opening browser: %v", err)
 		}
 	}()
-
+	//go StartWebServer() //必须使用go ，否则阻塞下面的服务器启动
 	// 启动服务器
 	log.Fatal(r.Run(port))
 }
